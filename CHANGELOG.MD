@@ -1,6 +1,36 @@
-<a href="https://tteck.github.io/Proxmox/"><img src="https://github-readme-stats-git-masterrstaa-rickstaa.vercel.app/api?username=tteck&theme=blue-green" height="130"/></a>
+
+![stats](https://github-readme-stats-git-masterrstaa-rickstaa.vercel.app/api?username=tteck&theme=blue-green)
+
 # Change Log
+
 All notable changes to this project will be documented in this file.
+
+## 2023-05-14
+
+- Added a new major use-case for this repo:
+  - Can now checkout repo to PVE server and use `just` CLI
+
+    ```sh
+    just # list available commands
+    just ct-alpine # create CT with Alpine Linux
+    # ...
+    ```
+
+- Directory refactor:
+  - Renamed `misc` directory to `utils`
+    - added sub-directory `utils/local` for _local-only_ scripts
+  - All exposed utilities now found under `fns`:
+    - `fns/ct` - base LXC containers
+    - `fns/vm` - base VM containers
+    - `fns/services` - **services** installed on top of a VM or CT
+    - `fns/pve` - **utilities** that are to be run on your PVE server instance directly
+- Added the [`shellcheck`](https://www.shellcheck.net/) opinionated linter to `just` CLI so that PR's are more conformed with any scripts that need to be written.
+
+  ```sh
+  just lint
+  ```
+
+-
 
 ## 2023-05-08
 
@@ -68,7 +98,7 @@ All notable changes to this project will be documented in this file.
 - **InfluxDB LXC**
   - Choosing InfluxDB v1 will result in Chronograf being installed automatically.
 - **[User Submitted Guides](https://github.com/tteck/Proxmox/blob/main/USER_SUBMITTED_GUIDES.md)**
-  -  Informative guides that demonstrate how to install various software packages using Proxmox VE Helper Scripts.
+  - Informative guides that demonstrate how to install various software packages using Proxmox VE Helper Scripts.
 
 ## 2023-04-14
 
@@ -148,7 +178,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Proxmox LXC Updater** 
+- **Proxmox LXC Updater**
   - You can use the command line to exclude multiple containers simultaneously.
 
 ## 2023-03-08
@@ -180,7 +210,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Proxmox LXC Updater** 
+- **Proxmox LXC Updater**
   - Skip all templates, allowing for the starting, updating, and shutting down of containers to be resumed automatically.
   - Exclude an additional container by adding the CTID at the end of the shell command ( -s 103).
 
@@ -188,46 +218,46 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **RSTPtoWEB LXC** 
+- **RSTPtoWEB LXC**
   - NEW Script
-- **go2rtc LXC** 
+- **go2rtc LXC**
   - NEW Script
 
 ## 2023-02-12
 
 ### Changed
 
-- **OliveTin** 
+- **OliveTin**
   - NEW Script
 
 ## 2023-02-10
 
 ### Changed
 
-- **Home Assistant OS VM** 
+- **Home Assistant OS VM**
   - Code Refactoring
 
 ## 2023-02-05
 
 ### Changed
 
-- **Devuan LXC** 
+- **Devuan LXC**
   - NEW Script
 
 ## 2023-02-02
 
 ### Changed
 
-- **Audiobookshelf LXC** 
+- **Audiobookshelf LXC**
   - NEW Script
-- **Rocky Linux LXC** 
+- **Rocky Linux LXC**
   - NEW Script
 
 ## 2023-01-28
 
 ### Changed
 
-- **LXC Cleaner** 
+- **LXC Cleaner**
   - Code refactoring to give the user the option to choose whether cache or logs will be deleted for each app/service.
   - Leaves directory structure intact
 
@@ -235,143 +265,143 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **LXC Cleaner** 
+- **LXC Cleaner**
   - NEW Script
 
 ## 2023-01-26
 
 ### Changed
 
-- **ALL LXC's** 
+- **ALL LXC's**
   - Add an option to disable IPv6 (Advanced)
 
 ## 2023-01-25
 
 ### Changed
 
-- **Home Assistant OS VM** 
+- **Home Assistant OS VM**
   - switch to v5
   - add an option to set MTU size (Advanced)
   - add arch check (no ARM64) (issue from community.home-assistant.io)
   - add check to insure VMID isn't already used before VM creation (Advanced) (issue from forum.proxmox.com)
   - code refactoring
-- **PiMox Home Assistant OS VM** 
+- **PiMox Home Assistant OS VM**
   - switch to v5
   - add an option to set MTU size (Advanced)
   - add arch check (no AMD64)
   - add pve check (=>7.2)
   - add check to insure VMID isn't already used before VM creation (Advanced)
   - code refactoring
-- **All LXC's** 
+- **All LXC's**
   - add arch check (no ARM64) (issue from forum.proxmox.com)
 
 ## 2023-01-24
 
 ### Changed
 
-- **Transmission LXC** 
+- **Transmission LXC**
   - NEW Script
 
 ## 2023-01-23
 
 ### Changed
 
-- **ALL LXC's** 
+- **ALL LXC's**
   - Add [Midnight Commander (mc)](https://www.linuxcommand.org/lc3_adv_mc.php)
 
 ## 2023-01-22
 
 ### Changed
 
-- **Autobrr LXC** 
+- **Autobrr LXC**
   - NEW Script
 
 ## 2023-01-21
 
 ### Changed
 
-- **Kavita LXC** 
+- **Kavita LXC**
   - NEW Script
 
 ## 2023-01-19
 
 ### Changed
 
-- **SABnzbd LXC** 
+- **SABnzbd LXC**
   - NEW Script
 
 ## 2023-01-17
 
 ### Changed
 
-- **Homer LXC** 
+- **Homer LXC**
   - NEW Script
 
 ## 2023-01-14
 
 ### Changed
 
-- **Tdarr LXC** 
+- **Tdarr LXC**
   - NEW Script
-- **Deluge LXC** 
+- **Deluge LXC**
   - NEW Script
 
 ## 2023-01-13
 
 ### Changed
 
-- **Lidarr LXC** 
+- **Lidarr LXC**
   - NEW Script
-- **Prowlarr LXC** 
+- **Prowlarr LXC**
   - NEW Script
-- **Radarr LXC** 
+- **Radarr LXC**
   - NEW Script
-- **Readarr LXC** 
+- **Readarr LXC**
   - NEW Script
-- **Sonarr LXC** 
+- **Sonarr LXC**
   - NEW Script
-- **Whisparr LXC** 
+- **Whisparr LXC**
   - NEW Script
 
 ## 2023-01-12
 
 ### Changed
 
-- **ALL LXC's** 
+- **ALL LXC's**
   - Add an option to set MTU size (Advanced)
 
 ## 2023-01-11
 
 ### Changed
 
-- **Home Assistant Core LXC** 
+- **Home Assistant Core LXC**
   - Auto Initialize
-- **Cronicle Primary/Worker LXC** 
+- **Cronicle Primary/Worker LXC**
   - NEW Script
 
 ## 2023-01-09
 
 ### Changed
 
-- **ALL LXC's** 
+- **ALL LXC's**
   - v5
-- **k0s Kubernetes LXC** 
+- **k0s Kubernetes LXC**
   - NEW Script
-- **Podman LXC** 
+- **Podman LXC**
   - NEW Script
 
 ## 2023-01-04
 
 ### Changed
 
-- **YunoHost LXC** 
+- **YunoHost LXC**
   - NEW Script
 
 ## 2022-12-31
 
 ### Changed
 
-- **v5 Scripts** (Testing before moving forward https://github.com/tteck/Proxmox/discussions/881)
+- **v5 Scripts** (Testing before moving forward <https://github.com/tteck/Proxmox/discussions/881>)
   - Adguard Home LXC
   - Docker LXC
   - Home Assistant Core LXC
@@ -383,10 +413,10 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Home Assistant Container LXC** 
+- **Home Assistant Container LXC**
   - Add an option to use Fuse Overlayfs (ZFS) (Advanced)
 
-- **Docker LXC** 
+- **Docker LXC**
   - Add an option to use Fuse Overlayfs (ZFS) (Advanced)
   - If the LXC is created Privileged, the script will automatically set up USB passthrough.
 
@@ -394,21 +424,21 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **All LXC's** 
+- **All LXC's**
   - Add an option to run the script in Verbose Mode (Advanced)
 
 ## 2022-12-20
 
 ### Changed
 
-- **Hyperion LXC** 
+- **Hyperion LXC**
   - NEW Script
 
 ## 2022-12-17
 
 ### Changed
 
-- **Home Assistant Core LXC** 
+- **Home Assistant Core LXC**
   - Linux D-Bus Message Broker
   - Mariadb & PostgreSQL Ready
   - Bluetooth Ready
@@ -418,198 +448,198 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Home Assistant Core LXC** 
+- **Home Assistant Core LXC**
   - Python 3.10.8
 
 ## 2022-12-09
 
 ### Changed
 
-- **Change Detection LXC** 
+- **Change Detection LXC**
   - NEW Script
 
 ## 2022-12-03
 
 ### Changed
 
-- **All LXC's** 
+- **All LXC's**
   - Add options to set DNS Server IP Address and DNS Search Domain (Advanced)
 
 ## 2022-11-27
 
 ### Changed
 
-- **Shinobi LXC** 
+- **Shinobi LXC**
   - NEW Script
 
 ## 2022-11-24
 
 ### Changed
 
-- **Home Assistant OS VM** 
+- **Home Assistant OS VM**
   - Add option to set machine type during VM creation (Advanced)
 
 ## 2022-11-23
 
 ### Changed
 
-- **All LXC's** 
+- **All LXC's**
   - Add option to enable root ssh access during LXC creation (Advanced)
 
 ## 2022-11-21
 
 ### Changed
 
-- **Proxmox LXC Updater** 
+- **Proxmox LXC Updater**
   - Now updates Ubuntu, Debian, Devuan, Alpine Linux, CentOS-Rocky-Alma, Fedora, ArchLinux [(@Uruknara)](https://github.com/tteck/Proxmox/commits?author=Uruknara)
 
 ## 2022-11-13
 
 ### Changed
 
-- **All LXC's** 
+- **All LXC's**
   - Add option to continue upon Internet NOT Connected
 
 ## 2022-11-11
 
 ### Changed
 
-- **HA Bluetooth Integration Preparation** 
+- **HA Bluetooth Integration Preparation**
   - [NEW Script](https://github.com/tteck/Proxmox/discussions/719)
 
 ## 2022-11-04
 
 ### Changed
 
-- **Scrypted LXC** 
+- **Scrypted LXC**
   - NEW Script
 
 ## 2022-11-01
 
 ### Changed
 
-- **Alpine LXC** 
+- **Alpine LXC**
   - NEW Script
-- **Arch LXC** 
+- **Arch LXC**
   - NEW Script
 
 ## 2022-10-27
 
 ### Changed
 
-- **Container & Core Restore from Backup** 
+- **Container & Core Restore from Backup**
   - [NEW Scripts](https://github.com/tteck/Proxmox/discussions/674)
 
 ## 2022-10-07
 
 ### Changed
 
-- **Home Assistant OS VM** 
+- **Home Assistant OS VM**
   - Add "Latest" Image
 
 ## 2022-10-05
 
 ### Changed
 
-- **Umbrel LXC** 
+- **Umbrel LXC**
   - NEW Script (Docker)
-- **Blocky LXC** 
+- **Blocky LXC**
   - NEW Script (Adblocker - DNS)
 
 ## 2022-09-29
 
 ### Changed
 
-- **Home Assistant Container LXC** 
+- **Home Assistant Container LXC**
   - If the LXC is created Privileged, the script will automatically set up USB passthrough.
-- **Home Assistant Core LXC** 
+- **Home Assistant Core LXC**
   - NEW Script
-- **PiMox HAOS VM** 
+- **PiMox HAOS VM**
   - NEW Script
 
 ## 2022-09-23
 
 ### Changed
 
-- **EMQX LXC** 
+- **EMQX LXC**
   - NEW Script
 
 ## 2022-09-22
 
 ### Changed
 
-- **NextCloudPi LXC** 
+- **NextCloudPi LXC**
   - NEW Script
 
 ## 2022-09-21
 
 ### Changed
 
-- **Proxmox Backup Server Post Install** 
+- **Proxmox Backup Server Post Install**
   - NEW Script
-- **Z-wave JS UI LXC** 
+- **Z-wave JS UI LXC**
   - NEW Script (and all sub scripts 🤞)
-- **Zwave2MQTT LXC** 
+- **Zwave2MQTT LXC**
   - Bye Bye Script
 
 ## 2022-09-20
 
 ### Changed
 
-- **OpenMediaVault LXC** 
+- **OpenMediaVault LXC**
   - NEW Script
 
 ## 2022-09-16
 
 ### Changed
 
-- **Paperless-ngx LXC** 
+- **Paperless-ngx LXC**
   - NEW Script (Thanks @Donkeykong307)
 
 ## 2022-09-11
 
 ### Changed
 
-- **Trilium LXC** 
+- **Trilium LXC**
   - NEW Script
 
 ## 2022-09-10
 
 ### Changed
 
-- **Syncthing LXC** 
+- **Syncthing LXC**
   - NEW Script
 
 ## 2022-09-09
 
 ### Changed
 
-- **CasaOS LXC** 
+- **CasaOS LXC**
   - NEW Script
-- **Proxmox Kernel Clean** 
+- **Proxmox Kernel Clean**
   - Now works with Proxmox Backup Server
 
 ## 2022-09-08
 
 ### Changed
 
-- **Navidrome LXC** 
+- **Navidrome LXC**
   - NEW Script
-- **Homepage LXC** 
+- **Homepage LXC**
   - NEW Script
 
 ## 2022-08-31
 
 ### Changed
 
-- **All LXC's** 
+- **All LXC's**
   - Add Internet & DNS Check
 
 ## 2022-08-22
 
 ### Changed
 
-- **Wiki.js LXC** 
+- **Wiki.js LXC**
   - NEW Script
 - **Emby Media Server LXC**
   - NEW Script
@@ -618,49 +648,49 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Mikrotik RouterOS VM** 
+- **Mikrotik RouterOS VM**
   - NEW Script
 
 ## 2022-08-19
 
 ### Changed
 
-- **PhotoPrism LXC** 
+- **PhotoPrism LXC**
   - Fixed .env bug (Thanks @cklam2)
 
 ## 2022-08-13
 
 ### Changed
 
-- **Home Assistant OS VM** 
+- **Home Assistant OS VM**
   - Option to create VM using Stable, Beta or Dev Image
 
 ## 2022-08-11
 
 ### Changed
 
-- **Home Assistant OS VM** 
+- **Home Assistant OS VM**
   - Validate Storage
 
 ## 2022-08-04
 
 ### Changed
 
-- **VS Code Server** 
+- **VS Code Server**
   - NEW Script
 
 ## 2022-08-02
 
 ### Changed
 
-- **All LXC/VM** 
+- **All LXC/VM**
   - v4 Script - Whiptail menu's
 
 ## 2022-07-26
 
 ### Changed
 
-- **Home Assistant OS VM** 
+- **Home Assistant OS VM**
   - Set the real time clock (RTC) to local time.
   - Disable the USB tablet device (save resources / not needed).
 
@@ -668,8 +698,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Home Assistant OS VM** 
-  - Present the drive to the guest as a solid-state drive rather than a rotational hard disk. There is no requirement that the underlying storage actually be backed by SSD's. 
+- **Home Assistant OS VM**
+  - Present the drive to the guest as a solid-state drive rather than a rotational hard disk. There is no requirement that the underlying storage actually be backed by SSD's.
   - When the VM’s filesystem marks blocks as unused after deleting files, the SCSI controller will relay this information to the storage, which will then shrink the disk image accordingly.
   - 👉 [more info](https://github.com/tteck/Proxmox/discussions/378)
 
@@ -883,7 +913,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - **ALL LXC's**
-  - New [V3 Install Script](https://github.com/tteck/Proxmox/issues/162) 
+  - New [V3 Install Script](https://github.com/tteck/Proxmox/issues/162)
 - **ioBroker LXC**
   - New Script V3
 
@@ -929,7 +959,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - **Scripts** (V2)
-  - FIX Pressing enter without making a selection first would cause an Error 
+  - FIX Pressing enter without making a selection first would cause an Error
 
 ## 2022-03-28
 
@@ -960,7 +990,6 @@ All notable changes to this project will be documented in this file.
 
 - **Proxmox CPU Scaling Governor**
   - New Script
-
 
 ## 2022-03-24
 
@@ -1041,7 +1070,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - **Scripts** (V2)
-  - Choose between Privileged or Unprivileged CT and Automatic or Password Login 
+  - Choose between Privileged or Unprivileged CT and Automatic or Password Login
 - **ESPHome LXC**
   - New V2 Install Script
 - **Zwavejs2MQTT LXC**
@@ -1217,9 +1246,9 @@ All notable changes to this project will be documented in this file.
 - **Zwavejs2MQTT LXC**
   - added USB passthrough during installation (no extra script)
 - **Jellyfin Media Server LXC**
-  - Moved to testing due to issues. 
+  - Moved to testing due to issues.
   - Changed install method.
-- **Home Assistant Container LXC (Podman)** 
+- **Home Assistant Container LXC (Podman)**
   - add script for easy Home Assistant update
 
 ## 2022-02-06
@@ -1277,11 +1306,10 @@ All notable changes to this project will be documented in this file.
   - `va-driver-all` is preinstalled
   - now using Ubuntu 21.10
 - **misc**
-  - new GUI script [(Screenshot)](https://raw.githubusercontent.com/tteck/Proxmox/main/misc/images/pms-copy-data.png) to copy data from one Plex Media Server LXC to another Plex Media Server LXC 
-
+  - new GUI script [(Screenshot)](https://raw.githubusercontent.com/tteck/Proxmox/main/misc/images/pms-copy-data.png) to copy data from one Plex Media Server LXC to another Plex Media Server LXC
 
 ## Initial Catch up - 2022-01-23
- 
+
 ### Changed
 
 - **Plex Media Server LXC**
@@ -1289,24 +1317,24 @@ All notable changes to this project will be documented in this file.
   - add script to install Intel Drivers
 - **Zwavejs2MQTT LXC**
   - new script to solve no auto start at boot
-- **Nginx Proxy Manager LXC** 
+- **Nginx Proxy Manager LXC**
   - new script to use Debian 11
-- **Ubuntu 21.10 LXC** 
+- **Ubuntu 21.10 LXC**
   - new script
-- **Mariadb LXC** 
+- **Mariadb LXC**
   - add MariaDB Package Repository
-- **MQTT LXC** 
+- **MQTT LXC**
   - add Eclipse Mosquitto Package Repository
-- **Home Assistant Container LXC** 
+- **Home Assistant Container LXC**
   - change if ZFS filesystem is detected, execute automatic installation of static fuse-overlayfs
   - add script for easy Home Assistant update
-- **Home Assistant Container LXC (Podman)** 
+- **Home Assistant Container LXC (Podman)**
   - change if ZFS filesystem is detected, execute automatic installation of static fuse-overlayfs
-- **Home Assistant OS VM** 
+- **Home Assistant OS VM**
   - change disk type from SATA to SCSI to follow Proxmox official recommendations of choosing VirtIO-SCSI with SCSI disk
   - clean up
-- **Proxmox VE 7 Post Install** 
-  - new *No-Nag* method
+- **Proxmox VE 7 Post Install**
+  - new _No-Nag_ method
 - **misc**
   - new GUI script to copy data from one Home Assistant LXC to another Home Assistant LXC
   - new GUI script to copy data from one Zigbee2MQTT LXC to another Zigbee2MQTT LXC

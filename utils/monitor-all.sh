@@ -25,6 +25,7 @@ while true; do
   esac
 done
 
+#shellcheck disable=SC2016
 echo '#!/usr/bin/env bash
 # Read excluded instances from command line arguments
 excluded_instances=("$@")
