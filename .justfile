@@ -15,34 +15,32 @@ NO_STRIKE :='\033[29m'
 REVERSE :='\033[7m'
 NO_REVERSE :='\033[27m'
 
-base := `pwd`
-build_fns := `pwd` / "utils/build.func"
-cmd_runner := `pwd` / "utils/local/runner.sh"
-cmd_info := `pwd` / "utils/local/info.sh"
-cmd_lint := `pwd` / "utils/local/lint.sh"
+monorepo := `pwd`
+moxy := `pwd` / "moxy"
+
+build_fns := `pwd` / "moxy/utils/build.func"
+tests_dir := `pwd` / "moxy/tests"
+
+cmd_runner := `pwd` / "/moxy/moxy/tests/runner.sh"
+cmd_info := `pwd` / "moxy/utils//info.sh"
 
 # list all scripts and global ENV variables
 default:
-    @echo "{{BOLD}}Proxmox helper scripts{{RESET}}"
+    @echo "{{BOLD}}MOXY CLI{{RESET}}"
     @echo "------------------------"
     @echo
     @just --list
     @echo
+    @echo "CLI Flags:"
+    @echo "  - {{REVERSE}} -v {{RESET}} turns on verbose reporting"
+    @echo "  - {{REVERSE}} -f {{RESET}} turns off all interactive prompts"
+    @echo "  - {{REVERSE}}--ask{{RESET}} turns off interactive prompts except single yes/no question"
+    @echo "    prior to execution"
+    @echo ""
     @echo "ENV Variables:"
-    
-    @echo "  - {{GREEN}}SSH{{RESET}} {{ITALIC}}allows setting a default value for new containers:"
-    @echo "      [ {{DIM}}no{{NO_DIM}}, {{DIM}}password{{NO_DIM}}, {{DIM}}crypto{{NO_DIM}}, {{DIM}}crypto-and-password{{NO_DIM}} ]{{RESET}}"
-
-    @echo "  - {{GREEN}}AUTHORIZED_KEYS{{RESET}} - {{ITALIC}}allows adding a set of SSH keys which will be added to "
-    @echo "    any new container (if SSH is enabled in some form){{RESET}}"
-
-    @echo "  - {{GREEN}}FORCE{{RESET}} - {{ITALIC}}changes the interactive script into a fully automated one which"
-    @echo "    accepts all defaults (with ENV vars overriding){{RESET}}"
-    @echo
-    @echo "{{BOLD}}Note:{{RESET}}"
-    @echo "  - you can set ENV variables in a {{GREEN}}.env{{RESET}} file at base of repo"
-    @echo "  - the {{GREEN}}.gitignore{{RESET}} in the repo ensures {{ITALIC}}your settings{{RESET}} will not bleed into repo"
+    @echo "  - there are {{ITALIC}}some{{RESET}} global ENV vars but some are command specific"
     @echo "  - use {{BOLD}}{{GREEN}}info {{NO_BOLD}}<script>{{RESET}} to get all avail ENV variables for a given script"
+    @echo "  - you can set ENV variables in a {{GREEN}}.env{{RESET}} file at base of repo"
 
 # get information on a particular script
 info SCRIPT:
@@ -50,17 +48,23 @@ info SCRIPT:
     fn_info "{{SCRIPT}}"
 
 lint *FILES:
-    @eval "{{cmd_lint}} {{base}} {{FILES}}"
+    @MOXY="{{moxy}}" bash -e "{{moxy}}/utils//lint.sh" "{{FILES}}"
 
 test *FILTER:
-    @bash -e "{{base}}/tests/runner.sh" "{{FILTER}}"
+    @MOXY="{{moxy}}" bash -e "{{moxy}}/tests/runner.sh" "{{FILTER}}"
+
+# create a cloud-init based VM template
+create-template *ARGS:
+    @MOXY="{{moxy}}" bash -e "{{moxy}}/vm/create-template.sh" "{{ARGS}}"
 
 # create new LXC container with Alpine Linux
 ct_alpine:
     @source "{{cmd_runner}}"
-    local_runner "ct/alpine.sh" "{{base}}"
+    # @MOXY="${PWD}/moxy" && local_runner "ct/alpine.sh"
+    @echo Not Implemented Yet
 
 # create new LXC container with Debian Linux
 ct_debian:
     @source "{{cmd_runner}}"
-    local_runner "ct/alpine.sh" "{{base}}"
+    # @MOXY="${PWD}/moxy" && local_runner "ct/alpine.sh"
+    @echo Not Implemented Yet

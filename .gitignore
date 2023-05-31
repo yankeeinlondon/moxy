@@ -1,3 +1,6 @@
 .env
+.env.ts
 **/.env
+**/.env.ts
 **/.DS_Store
+**/node_modules/

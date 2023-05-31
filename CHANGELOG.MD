@@ -18,7 +18,7 @@ All notable changes to this project will be documented in this file.
 
 - Directory refactor:
   - Renamed `misc` directory to `utils`
-    - added sub-directory `utils/local` for _local-only_ scripts
+    - added sub-directory `utils/` for _local-only_ scripts
   - All exposed utilities now found under `fns`:
     - `fns/ct` - base LXC containers
     - `fns/vm` - base VM containers
