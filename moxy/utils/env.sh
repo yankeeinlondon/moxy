@@ -13,6 +13,8 @@ export KV_SUFFIX="${KV_SUFFIX:-]}"
 export KV_DELIMITER="${KV_DELIMITER:-→}"
 
 export DEBUG="${DEBUG:-false}"
+export DEFAULT_TEMPLATE_ID="${DEFAULT_TEMPLATE_ID:-800}"
+export HOST="${HOST:-unknown host}"
 
 # PVE and Cluster Characteristics
 

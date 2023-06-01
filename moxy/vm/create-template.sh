@@ -2,12 +2,13 @@
 
 # shellcheck disable=SC1091
 source "${MOXY}/utils/shared.sh"
+source "${MOXY}/utils/proxmox.sh"
 source "${MOXY}/utils/interactive/ask.sh"
 catch_errors
 
-DEBIAN_10="${DEBIAN_10:-debian-10-genericcloud-amd64.qcow2}"
-DEBIAN_11="${DEBIAN_11:-debian-11-genericcloud-amd64.qcow2}"
-DEBIAN_12="${DEBIAN_12:-debian-12-genericcloud-amd64-daily.qcow2}"
+DEBIAN_10="${DEBIAN_10:-debian-10-generic-amd64.qcow2}"
+DEBIAN_11="${DEBIAN_11:-debian-11-generic-amd64.qcow2}"
+DEBIAN_12="${DEBIAN_12:-debian-12-generic-amd64-daily.qcow2}"
 UBUNTU_20_4="${UBUNTU_20_4:-ubuntu-20.04-server-cloudimg-amd64.img}"
 UBUNTU_22_4="${UBUNTU_22_4:-ubuntu-22.04-server-cloudimg-amd64.img}"
 UBUNTU_23_4="${UBUNTU_23_4:-lunar-server-cloudimg-amd64.img}"
@@ -133,8 +134,13 @@ function create_template() {
     local distro="${2:-undefined}"
 
     if [[ "${vm_id}" == "undefined" ]]; then
-        SUGGEST=next_container_id || 800
-        vm_id=$(whiptail --inputbox "What ID will you use for the template?" 8 58 "${SUGGEST}" --title "VM ID" 3>&1 1>&2 2>&3)
+        allow_errors
+        SUGGEST=$(next_container_id) || "800"
+        catch_errors
+
+        vm_id=$(ask_for_text "" "VM ID" "What ID will you use for the template?" 8 58 "${SUGGEST}")
+
+        # vm_id=$(whiptail --inputbox "What ID will you use for the template?" 8 58 "${SUGGEST}" --title "VM ID" )
 
         exit_status=$?
         if [[ $exit_status != 0 ]]; then
@@ -144,7 +150,25 @@ function create_template() {
     fi
 
     if [[ "${distro}" == "undefined" ]]; then
-        set +e
+        allow_errors
+        local -A options=(
+            [debian/10]="current stable release"
+            [debian/11]="current stable release"
+            [debian/12]="daily release"
+            [ubuntu/20_04]="current stable release"
+            [ubuntu/22_04]="current stable release"
+            [ubuntu/23_04]="daily release"
+            [fedora/37]="current stable release"
+            [centos/8]="current stable release"
+            [centos/9]="current stable release"
+        )
+        local -r choices=$(as_object "${options[@]}")
+
+
+        distro=$(ask_from_menu "Distro" "What distro do you want?" "$choices" )
+
+
+
         distro=$(whiptail --title "Distro" --menu "What distro do you want to use?" 15 58 9 \
             "debian/10" "current stable release" \
             "debian/11" "current stable release"  \

@@ -27,6 +27,31 @@ function error_handler() {
     log "  [${RED}x${RESET}] ERROR in line $line_number [ exit code $exit_code] while executing command \"${DIM}$command${RESET}\""
 }
 
+function success_msg() {
+    local -r msg="$1:?did not get a message passed to success_msg"
+
+    log "  [${GREEN}✔${RESET}] ${msg}"
+}
+
+# failure_msg <msg> <fn> <code> <test> <value> <params[]>
+function failure_msg() {
+    local msg="${1:?test message not passed to failure_msg()}"
+    local -r fn="${2:?the function being tested was not passed to failure_msg}"
+    local -r code="${3:?error code not received by failure_msg()}"
+    local -r test="${4:the test type was not received by failure_msg()}"
+    local -r value="${5:-}"
+    local -ra params=("${@:6}")
+
+    msg="${msg} [ fn: ${RED}${fn}${RESET}, "
+    if [[ "$code" != "1" ]]; then
+        msg="${msg}${DIM}code: ${code}${RESET}, "
+    fi
+
+    msg="${msg}params: ${DIM}params: ${params[*]}${RESET} ]"
+
+    log "  [${RED}x${RESET}] ${msg}"
+}
+
 function try() {
     debug "try" "params: $*"
     local -r maybe_object="$1"
@@ -190,6 +215,27 @@ function assert_contains() {
         done
         response="$(avoid_trailing "," "${response}")] "
         echo "${response}"
+        return 1
+    fi
+}
+
+function assert_success() {
+    local -r msg="${1:?did not get a message from assert_success}"
+    local -r fn="${2:?did not get a function call as second param to assert_success}"
+    local -ra params=( "${@:3}" )
+    local -r test_type="fn returned successfully"
+
+    local -r value=$(eval "$fn" "${params[*]}")
+    local -r return_code="$?"
+    debug "assert_success" "fn: ${fn}"
+    debug "assert_success" "params: ${params[*]}, return-code: ${return_code}"
+
+    if [[ "$return_code" == "0" ]]; then
+        debug "assert_success" "was successful"
+        success_msg "$msg"
+        return 0
+    else
+        failure_msg "$msg" "$fn" "$return_code" "${test_type}" "$value" "${params[@]}"
         return 1
     fi
 }

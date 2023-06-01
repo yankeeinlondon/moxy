@@ -72,10 +72,14 @@ function warn() {
     log "${YELLOW}WARN ${RESET} ==> ${*}"
 }
 
+# error <msg> <[code]>
+#
+# sends an error message to STDERR and if an error code
+# has been included then it will return that error code too
 function error() {
-    local -r possible_code="${2:->not-specified}"
+    local -r possible_code="${2:-error code not-specified}"
 
-    if [[ "$possible_code" == "not-specified" ]]; then
+    if [[ "$possible_code" == "error code not-specified" ]]; then
         log "${RED}ERROR ${RESET} ==> ${*}"
     else
         log "${RED}ERROR [${possible_code}] ${RESET} ==> ${1}"
@@ -87,6 +91,7 @@ function error() {
     fi
 }
 
+# error_handler
 function error_handler() {
     local -r exit_code="$?"
     local -r line_number="$1"
@@ -94,6 +99,53 @@ function error_handler() {
     log "  [${RED}x${RESET}] ERROR in line $line_number [ exit code $exit_code ] while executing command \"${DIM}$command${RESET}\""
 }
 
+# allow_errors()
+#
+# Allows for non-zero return-codes to avoid being sent to the error_handler
+# and is typically used to temporarily check on an external state from the shell
+# where an error might be encountered but which will be handled locally
+function allow_errors() {
+    set +e
+}
+
+function error_state_fails() {
+    local -r current_state=$-
+    case $current_state in
+
+        *e*) return 0;;
+        *) return 1;;
+
+    esac
+}
+
+# pause_errors()
+#
+# Passes back the current state of error handling so it may be restored
+# later but then disables it at this point.
+function pause_errors() {
+    local -r current_state=$-
+    case $current_state in
+
+        *e*) echo "true";;
+        *) echo "false";;
+
+    esac
+
+    return 0
+}
+
+function restore_errors() {
+    local -r prior="${1:?no prior state was passed into restore_errors}"
+
+    if [[ "$prior" == "true" ]]; then
+        set -e
+    fi
+}
+
+# catch_errors()
+#
+# Catches all errors found in a script -- including pipeline errors -- and
+# sends them to an error handler to report the error.
 function catch_errors() {
   set -Eeuo pipefail
   trap 'error_handler $LINENO "$BASH_COMMAND"' ERR
@@ -1085,32 +1137,55 @@ function destruct() {
 }
 
 
-# iterable <object|list|array> → <iterable>
-function iterator() {
+# as_iterable <object|list|array> → <iterable>
+function as_iterator() {
     local maybe_iterable="${1:?iterator fn did not receive any parameters}"
     local -xf api
 
-
     if is_list "${maybe_iterable}"; then
         debug "iterator" "payload detected as a list"
+        
         # shellcheck disable=SC2317
         function api_surface() {
             local -r cmd="${1:?no command provided to a call of the iterator\'s api }"
 
             case $cmd in
 
+                "value")
+                    echo "TODO"
+                    ;;
+
                 "next") echo "TODO";;
 
                 "take") echo "TODO";;
 
                 *)
-                    error "Unknown command sent to iterator API: ${DIM}${cmd}${RESET}" "$ERR_UNKNOWN_COMMAND"
+                    error "Unknown command sent to iterable API: ${DIM}${cmd}${RESET}" "$ERR_UNKNOWN_COMMAND"
                     ;;
             esac
         }
         api=api_surface
         echo "${api}"
         return 0
+    fi
+
+    if is_kv_pair "${maybe_iterable}"; then
+        debug "iterator" "payload detected as KV pair"
+        local payload=( "$(as_array "$maybe_iterable")" )
+        # shellcheck disable=SC2317
+        function api_surface {
+            local -r cmd="${1:?no command provided to a call of the iterator\'s api }"
+            local 
+
+            case $cmd in 
+
+
+                *)
+                    error "Unknown command sent to iterable API: ${DIM}${cmd}${RESET}" "$ERR_UNKNOWN_COMMAND"
+                    ;;
+            esac
+        }
+
 
     fi
 

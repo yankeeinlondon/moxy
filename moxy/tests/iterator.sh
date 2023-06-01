@@ -18,9 +18,23 @@
 # printf "%s\n\n%s\n\n" "partial:" "$partial"
 # printf "%s\n\n%s\n\n" "complete:" "$complete"
 
+declare -f object;
+declare foo;
+declare bar;
+declare obj;
+declare value;
+
+# Test Data
+foo=$(kv "foo" "foey")
+bar=$(kv "bar" "barred")
+obj=$(object "${foo}" "${bar}")
+lst=$(list "$foo" "$bar")
+
 function unit_test() {
     test_separator "kv as iterator"
-    echo "TODO"
+
+    value=$(assert_success "kv pair passed to iterator returns successfully" as_iterator "${foo}")
+
     test_separator "list as iterator"
     echo "TODO"
 
