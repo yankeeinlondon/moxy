@@ -1136,6 +1136,32 @@ function destruct() {
     # done
 }
 
+_iterator() {
+    local payload="${1:?no payload received by _iterator()}"
+    # shellcheck disable=SC2317
+    function api_surface() {
+        local -r cmd="${1:?no command provided to a call of the iterator\'s api }"
+
+        case $cmd in
+
+
+            "value")
+                echo "$payload"
+                return 0
+                ;;
+
+            "next") echo "TODO";;
+
+            "take") echo "TODO";;
+
+            *)
+                error "Unknown command sent to iterable API: ${DIM}${cmd}${RESET}" "$ERR_UNKNOWN_COMMAND"
+                ;;
+        esac
+    }
+
+}
+
 
 # as_iterable <object|list|array> → <iterable>
 function as_iterator() {
@@ -1171,7 +1197,7 @@ function as_iterator() {
 
     if is_kv_pair "${maybe_iterable}"; then
         debug "iterator" "payload detected as KV pair"
-        local payload=( "$(as_array "$maybe_iterable")" )
+        local -ra payload=( "$(as_array "$maybe_iterable")" )
         # shellcheck disable=SC2317
         function api_surface {
             local -r cmd="${1:?no command provided to a call of the iterator\'s api }"
