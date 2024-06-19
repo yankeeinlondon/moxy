@@ -59,20 +59,20 @@ function get_package_manager() {
         case $distro in
 
             "ubuntu" | "debian" | "devuan")
-                add_cmd=${apt_add}
-                upgrade_cmd=${apt_upgrade}
+                add_cmd="apt install"
+                upgrade_cmd="apt upgrade"
                 ;;
             "alpine")
-                add_cmd=${apk_add}
-                upgrade_cmd=${apk_upgrade}
+                add_cmd="apk install"
+                upgrade_cmd="apk upgrade"
                 ;;
             "rocky")
-                add_cmd=""
-                upgrade_cmd=""
+                add_cmd="rpm install"
+                upgrade_cmd="rpm upgrade"
                 ;;
             "arch")
-                add_cmd=""
-                upgrade_cmd=""
+                add_cmd="pacman install"
+                upgrade_cmd="pacman upgrade"
                 ;;
             *)
                 error "Invalid package manager \"${distro}\" passed to get_package_manager"
@@ -80,10 +80,11 @@ function get_package_manager() {
                 ;;
         esac
 
+
     fi
 
     # API Surface
-    local -A api=( add=${add_cmd} upgrade=${upgrade_cmd} )
+    local -A api=( [add]=${add_cmd} [upgrade]=${upgrade_cmd} )
     echo "${api[@]}"
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# shellcheck disable=1091
-source "${MOXY}/utils/shared.sh"
+# shellcheck source="./shared.sh"
+source "./utils/shared.sh"
 
 # is_pve_node
 #
@@ -23,6 +23,13 @@ function is_pve_node() {
         # shellcheck disable=SC2086
         return ${ERR_NOT_PVE_NODE}
     fi
+}
+
+
+
+
+function has_proxmox_api_key() {
+    log ""
 }
 
 # next_container_id

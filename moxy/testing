@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+. "./utils/shared.sh"
+. "./utils/interactive/ask.sh"
+
+if has_command "dialog"; then
+    log "dialog"
+fi
+if has_command "whiptail"; then
+    log "whiptail"
+else
+    log "no whiptail"
+fi
+

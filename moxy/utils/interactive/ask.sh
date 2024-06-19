@@ -1,59 +1,113 @@
 #!/usr/bin/env bash
 
-# shellcheck disable=1091
-# source "../shared.sh"
+# shellcheck source="../shared.sh"
+source "./utils/shared.sh"
 
 function default_validator () {
     return 0;
 }
 
-function has_command() {
-    local -r cmd="${1:?cmd is missing}"
-
-    if eval "which ${cmd}" >/dev/null; then
-        return 0; # exists
-    else
-        return 1; # does not exist
-    fi
+function exit_ask() {
+    local -r msg="${1:-}"
+    clear
+    log "${msg}"
+    exit
 }
 
-# ui_availability() → [whiptail|dialog|ERROR]
+let DIALOG_OK=0;
+let DIALOG_CANCEL=1;
+let DIALOG_HELP=2;
+let DIALOG_EXTRA=3;
+let DIALOG_HELP=4;
+let DIALOG_TIMEOUT=5;
+# when error occur inside dialog or user presses ESC
+let DIALOG_ERR=-1;
+
+
+
+# ask
 #
-# tests whether "whiptail" or "display" (https://invisible-island.net/dialog/) 
-# packages are available on the execution platform. 
-# For PVE hosts "whiptail" should always be available.
-function ui_availability() {
+# determines which TUI to use
+function ask() {
     if has_command "whiptail"; then
-        echo "whiptail" "has whiptail"
-        return 0
+        debug "ask" "using whiptail for TUI"
+        whiptail "${@}"
     elif has_command "dialog"; then
-        debug "ui_availability" "no whiptail but has dialog"
-        echo "dialog"
-        return 0
-    else
-        debug "ui_availability" "neither whiptail nor dialog found on host"
-        return 1
+        debug "ask" "using Display for TUI"
+        display "${@}"
     fi
 }
 
-# responsible for handling the interactive parts of the process, including:
-# - gathering a pipeline of questions and default answers
-# - validating that all default values are valid
+function tui() {
+    local var
 
+    if has_command "whiptail"; then
+        var="whiptail"
+    elif has_command "dialog"; then
+        var="dialog"
+    else 
+        var="none"
+    fi
+
+    echo "${var}"
+}
+
+# ask_yes_no <Prompt>
+# 
+function ask_password() {
+    local -r title="${1:?No title provided to ask_yes_no()}"
+    local -r height="${2:?No height provided to ask_yes_no()}"
+    local -r width="${3:?No width provided to ask_yes_no()}"
+    local -r ok_btn="${4:-Ok}"
+    local -r cancel_btn="${5:-Cancel}"
+    local -r exit_msg="${6:-Goodbye}"
+    local -r tool="$(tui)"
+    local choice
+
+    if [[ "$tool" == "dialog" ]]; then 
+        choice=$(
+            dialog --ok-label "${ok_btn}" --cancel-label "${cancel_btn}" --inputbox "${title}" "${height}" "${width}"  3>&2 2>&1 1>&3
+        ) || exit_ask "${exit_msg}"
+    elif [[ "$tool" == "whiptail" ]]; then 
+        choice=$(
+            whiptail --ok-btn "${ok_btn}" --cancel-btn "${cancel_btn}" --inputbox "${title}" "${height}" "${width}"  3>&2 2>&1 1>&3
+        ) || exit_ask "${exit_msg}"
+    else
+        error "can't ask for password as no TUI is available [${tool}]"
+        exit 1
+    fi
+
+    if [ "${#choice}" -lt 8 ]; then
+        log ""
+        log ""
+        error "The key you passed in was too short [${#choice}], please refer to the Promox docs for how to generate the key and test it out with Postman or equivalent if you're unsure if it's right"
+        log ""
+        exit 1
+    else 
+        log "${choice}"
+        log "Tui: $(tui)"
+    fi
+
+}
+
+
+# ask_to_continue <continue msg> <exit msg> <y|n> <err>
 function ask_to_continue() {
-    local -r default_answer="${1:-yes}"
+    local -r continue_msg="${1:-Ok}"
     local -r exit_msg="${2:-Exiting...}"
-    local -r continue_msg="${1:-}"
-    local prompt=""
+    local -r def_val="${3:-y}"
+    local -r exit_is_error="${4:-false}"
 
-    lc "${default_answer}" | grep -Eq "^(y|yes)"
-    DEFAULT_YES=$?
 
-    if $DEFAULT_YES; then 
+    if [[ "$def_val" == "y" ]]; then 
         read -r -p "Continue? <Y/n> " prompt
         if echo "$prompt" | grep -Eq "^(n|no)$"; then
             log "${exit_msg}"
-            exit 1
+            if [[ "${exit_is_error}" == "false" ]]; then
+                exit 0
+            else
+                exit 1
+            fi
         else
             log "${continue_msg}"
             log ""
@@ -69,8 +123,8 @@ function ask_to_continue() {
             log ""
         fi
     fi
-
 }
+
 
 # ask_for_text <id> <title> <question> <[height]> <[width]> <[def_value]> <[validator fn]>
 #
@@ -133,10 +187,10 @@ function ask_from_menu() {
 
 
     local -r num_choices=iterable "count"
-        local dialog_height=$(( num_options+2 ))
-        if [[ dialog_height -gt 20 ]]; then
-            dialog_height=$(( 20 ))
-        fi
+    local dialog_height=$(( num_options+2 ))
+    if [[ dialog_height -gt 20 ]]; then
+        dialog_height=$(( 20 ))
+    fi
     local -r height="${3:8}"
     local -r width="${4:60}"
     local -r def_value="${5:-}"
@@ -170,4 +224,3 @@ function ask_select_many() {
 }
 
 
-ui_availability

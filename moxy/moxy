@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+export BACK_TITLE="Moxy"
+
+. "./utils/ready.sh"
+. "./utils/shared.sh"
+
+log "hi"

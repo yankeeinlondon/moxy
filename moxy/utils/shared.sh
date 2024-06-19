@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # shellcheck disable=1091
-source "${MOXY}/utils/errors.sh"
-source "${MOXY}/utils/env.sh"
+source "./utils/errors.sh"
+source "./utils/env.sh"
 
 #shellcheck disable=SC2034
 RESET='\033[0m'
@@ -108,6 +108,8 @@ function allow_errors() {
     set +e
 }
 
+
+
 function error_state_fails() {
     local -r current_state=$-
     case $current_state in
@@ -159,7 +161,7 @@ function nbsp() {
 # 
 # boolean test to see if first parameter is an array
 function is_array() {
-    local _var=${1:?no parameter passed into is_array}
+    local _var="${1:?no parameter passed into is_array}"
     local declaration=""
     # shellcheck disable=SC2086
     declaration=$(declare -p $1)
@@ -180,6 +182,24 @@ function is_keyword() {
     if [[ "$declaration" == "keyword" ]]; then
         return 0
     else
+        return 1
+    fi
+}
+
+# ui_availability() → [whiptail|dialog|ERROR]
+#
+# tests whether "whiptail" or "display" (https://invisible-island.net/dialog/) 
+# packages are available on the execution platform. 
+# For PVE hosts "whiptail" should always be available.
+function ui_availability() {
+    if has_command "whiptail"; then
+        debug "ui_availability" "has whiptail"
+        return 0
+    elif has_command "dialog"; then
+        debug "ui_availability" "no whiptail but has dialog"
+        return 0
+    else
+        debug "ui_availability" "neither whiptail nor dialog found on host"
         return 1
     fi
 }
@@ -299,12 +319,13 @@ function pretty_single_line() {
 function has_command() {
     local -r cmd="${1:?cmd is missing}"
 
-    if eval "which ${cmd}" >/dev/null; then
-        return 0; # exists
-    else
-        return 1; # does not exist
+    if command -v "${cmd}" &> /dev/null; then
+        return 0
+    else 
+        return 1
     fi
 }
+
 
 # ends_with <look-for> <content>
 function ends_with() {
@@ -456,18 +477,43 @@ function flags() {
     return 0
 }
 
+# contains <content> <matches> 
+# 
+# given the "content" string, all other parameters passed in
+# will be looked for in this content.
 function contains() {
-    local -r match="${1:?match expression not passed to extract}"
+    local -r content="${1:?content expression not passed to contains()}"
     local -ra list=( "${@:2}" )
     
     for item in "${list[@]}"; do
-        if [[ "${item}" == "${match}" ]]; then
+        if [[ "${item}" == "${content}" ]]; then
             return 0 # successful match
         fi
     done
 
     return 1
 }
+
+# file_contains <filepath> <...find> 
+# 
+# will search the content of the "filepath" passed in for 
+# any substring which matches the other parameters 
+# passed in.
+function file_contains() {
+    local -r filepath="${1:?filepath expression not passed to file_has_content()}"
+    local -ra find=( "${@:2}");
+
+    local -r data=$(get_file filepath)
+
+    for item in "${find[@]}"; do
+        if [[ "${item}" == "${data}" ]]; then
+            return 0 # successful match
+        fi
+    done
+
+    return 1
+}
+
 
 # extract <look-for> <list>
 # 
@@ -510,6 +556,9 @@ function str_eq() {
 }
 
 # replace <find> <replace> <content>
+#
+# Looks for "find" in the "content" string passed in and replaces it
+# with "replace".
 function replace() {
     local -r find="${1:?the FIND string was not passed to replace}"
     local -r replace="${2:?the REPLACE string was not passed to replace}"
@@ -562,6 +611,9 @@ function is_kv_pair() {
     return 1
 }
 
+# join <str> <...list>
+#
+# Joins the string passed in $1 with all other parameters passed in
 function join() {
     local -r join_str="${1:?the JOIN string was not passed to join}"
     local -ra list=( "${@:2}" )
@@ -622,7 +674,11 @@ function has_parameters() {
     fi
 }
 
-
+# replace_substring_in_file( match, replace, file )
+#
+# Loads a file from the local filesystem and then looks
+# for all matches to the string "match". All matched
+# string will be replaced with "replace".
 function replace_substring_in_file() {
     local match="${1:-not-defined}"
     local replace="${2:-not-defined}"
@@ -1031,7 +1087,9 @@ function dict_add() {
     return 0
 }
 
-
+# file_exists <filepath>
+#
+# tests whether a given filepath exists in the filesystem
 function file_exists() {
     local filepath="${1:?filepath is missing}"
 
@@ -1042,6 +1100,7 @@ function file_exists() {
     fi
 }
 
+
 function directory_exists() {
     local dir="${1:?directory is missing}"
 
@@ -1050,6 +1109,61 @@ function directory_exists() {
     else
         return 1;
     fi    
+}
+
+function get_file() {
+    local -r filepath="${1:?get_file() called but no filepath passed in!}"
+
+    if [[ "${filepath}" == "_line" || "${filepath}" == "_contents" ]]; then
+        error "called get_file(${filepath}) with an invalid filepath!"
+        return 1
+    fi
+    
+    if file_exists "$filepath"; then
+        local content
+        { IFS= read -rd '' content <"${filepath}";} 2>/dev/null
+        printf '%s' "${content}"
+    else
+        debug "call to get_file(${filepath}) had invalid filepath"
+        return 1
+    fi
+}
+
+function get_moxy_config() {
+    if file_exists "${PWD}/.moxy"; then
+        get_file "${PWD}/.moxy"
+    elif file_exists "${HOME}/.moxy"; then
+        get_file "${HOME}/.moxy"
+    else
+        debug "- no moxy config file found"
+        echo "is_first_run=true"
+    fi
+}
+
+# has_env <variable name>
+#
+# checks whether a given ENV variable name is defined
+function has_env() {
+    local -r var="${1:?has_env() called but no variable name passed in!}"
+
+    if [[ -z "${var}" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# get_env <variable name> <default>
+#
+# Get's an ENV variable name when defined or returns <default>
+function get_env() {
+    local -r var="${1:?has_env() called but no variable name passed in!}"
+    local -r def_val="${2:-false}"
+    if has_env "$var"; then
+        log "${var}"
+    else
+        log "${def_val}"
+    fi
 }
 
 # get_files <base_dir> <regex> [filter1 filter2 ...]
