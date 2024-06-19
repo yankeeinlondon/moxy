@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 
 # shellcheck disable=1091
-source "${MOXY}/utils/shared.sh"
+# source "../shared.sh"
 
 function default_validator () {
     return 0;
+}
+
+function has_command() {
+    local -r cmd="${1:?cmd is missing}"
+
+    if eval "which ${cmd}" >/dev/null; then
+        return 0; # exists
+    else
+        return 1; # does not exist
+    fi
 }
 
 # ui_availability() → [whiptail|dialog|ERROR]
@@ -113,11 +123,11 @@ function ask_from_menu() {
     local -r question="${2:?no question text passed to ask_for_text()}"
     local -r choices="${3:?no choices provided to ask_for_menu}"
 
-    if ! is_object "${choices}"; then
-        error "ask_from_menu() was called without a valid set of choices: ${DIM}${choices}${RESET}"
-        # shellcheck disable=SC2086
-        return $ERR_MENU_NOT_OBJECT
-    fi
+    # if ! is_object "${choices}"; then
+    #     error "ask_from_menu() was called without a valid set of choices: ${DIM}${choices}${RESET}"
+    #     # shellcheck disable=SC2086
+    #     return $ERR_MENU_NOT_OBJECT
+    # fi
 
     
 
@@ -130,7 +140,7 @@ function ask_from_menu() {
     local -r height="${3:8}"
     local -r width="${4:60}"
     local -r def_value="${5:-}"
-    local -rf validate="${6:-$default_validator}"
+    local -r validate="${6:-$default_validator}"
 }
 
 function ask_yes_no() {
@@ -158,3 +168,6 @@ function ask_select_many() {
 
     echo "TODO"
 }
+
+
+ui_availability

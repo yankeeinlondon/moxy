@@ -21,7 +21,6 @@
 
 <h1>
     <img class="dark" src="./docs/moxy-dark.png" alt="Moxy Scripts" />
-    <img class="light" src="./docs/moxy.png" alt="Moxy Scripts" />
     <span style="display:none">Moxy Scripts</span>
 </h1>
 

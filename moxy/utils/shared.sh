@@ -254,6 +254,19 @@ function is_function() {
 
 }
 
+# is_installed
+# 
+# checks whether a particular program passed in via $1 is installed on the OS or not
+function is_installed() {
+    local to_check=${1:?nothing was passed to is_function to check}
+    if ! command -v "${to_check}" &> /dev/null; then
+        return 0
+    else 
+        return 1
+    fi
+}
+
+
 function is_numeric() {
     local -r maybe_numeric="${1:?no value passed to is_numeric}"
 
@@ -607,7 +620,15 @@ function has_parameters() {
         debug "has_parameters" "true [${DIM}${#@}${RESET}]"
         return 0
     fi
+}
 
+
+function replace_substring_in_file() {
+    local match="${1:-not-defined}"
+    local replace="${2:-not-defined}"
+    local file="${3:-not-defined}"
+
+    sed -i -e "s/${match}/${replace}/g" "${file}"
 }
 
 
