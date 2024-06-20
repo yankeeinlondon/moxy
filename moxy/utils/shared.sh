@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
-# shellcheck disable=1091
+# shellcheck source="./errors.sh"
 source "./utils/errors.sh"
+# shellcheck source="./env.sh"
 source "./utils/env.sh"
 
 #shellcheck disable=SC2034
@@ -49,6 +50,7 @@ function debug() {
     if [[ "${DEBUG}" != "false" ]]; then
         if (( $# > 1 )); then
             local fn="$1"
+
             shift
             local regex=""
             local lower_fn="" 
@@ -388,10 +390,10 @@ function ensure_starting() {
     return 0
 }
 
-# avoid_starting <avoid-str> <content>
+# strip_starting <avoid-str> <content>
 #
 # ensures that the "content" will NOT start with the <avoid-str>
-function avoid_starting() {
+function strip_starting() {
     local -r avoid="${1:?No avoid string provided to ensure_starting}"
     local -r content="${2:-}"
 
@@ -400,7 +402,10 @@ function avoid_starting() {
     return 0
 }
 
-function avoid_trailing() {
+# strip_trailing <avoid> <content>
+#
+# Strips the <avoid> string at the END of <content> if it exists.
+function strip_trailing() {
     local -r avoid="${1:?No avoid string provided to ensure_starting}"
     local -r content="${2:-}"
 
@@ -486,7 +491,7 @@ function contains() {
     local -ra list=( "${@:2}" )
     
     for item in "${list[@]}"; do
-        if [[ "${item}" == "${content}" ]]; then
+        if [[ "${content}" =~ ${item} ]]; then
             return 0 # successful match
         fi
     done
@@ -496,17 +501,17 @@ function contains() {
 
 # file_contains <filepath> <...find> 
 # 
-# will search the content of the "filepath" passed in for 
-# any substring which matches the other parameters 
-# passed in.
+# will search the contents of the file in the "filepath" passed in for 
+# any substring which matches one of the parameters passed in for 
+# "find".
 function file_contains() {
     local -r filepath="${1:?filepath expression not passed to file_has_content()}"
     local -ra find=( "${@:2}");
 
-    local -r data=$(get_file filepath)
+    local -r content="$(get_file "$filepath")"
 
     for item in "${find[@]}"; do
-        if [[ "${item}" == "${data}" ]]; then
+        if [[ "${content}" =~ ${item} ]]; then
             return 0 # successful match
         fi
     done
@@ -591,8 +596,8 @@ function kv() {
 function kv_strip() {
     local kv="${1:?KV not provided to kv_strip fn}"
 
-    kv=$(avoid_starting "$KV_PREFIX" "$kv")
-    kv=$(avoid_trailing "$KV_SUFFIX" "$kv")
+    kv=$(strip_starting "$KV_PREFIX" "$kv")
+    kv=$(strip_trailing "$KV_SUFFIX" "$kv")
 
     echo "${kv}"
 }
@@ -636,7 +641,7 @@ function list() {
         list_defn="${list_defn}${LIST_DELIMITER}${i}"
     done
 
-    list_defn=$(avoid_starting "$LIST_DELIMITER" "$list_defn")
+    list_defn=$(strip_starting "$LIST_DELIMITER" "$list_defn")
     list_defn="${LIST_PREFIX}${list_defn}${LIST_SUFFIX}"
 
     debug "list" "${list_defn}"
@@ -705,7 +710,7 @@ function object() {
         fi
     done
 
-    object_defn=$(avoid_starting "$OBJECT_DELIMITER" "$object_defn")
+    object_defn=$(strip_starting "$OBJECT_DELIMITER" "$object_defn")
     object_defn="${OBJECT_PREFIX}${object_defn}${OBJECT_SUFFIX}"
 
     debug "object" "${object_defn}"
@@ -721,8 +726,8 @@ function object() {
 function object_strip() {
     local obj="${1?:nothing passed into object_stript}"
 
-    obj=$(avoid_starting "${OBJECT_PREFIX}" "$obj")
-    obj=$(avoid_trailing "${OBJECT_SUFFIX}" "$obj")
+    obj=$(strip_starting "${OBJECT_PREFIX}" "$obj")
+    obj=$(strip_trailing "${OBJECT_SUFFIX}" "$obj")
 
     echo "$obj"
 }
@@ -847,6 +852,29 @@ function length() {
     return 0
 }
 
+# count_char_in_file <filepath> <chars>
+function count_char_in_file {
+    local -r filename="${1:?no filename passed to count_char_in_file}"
+    local -r chars="${2:?no chars passed to count_char_in_file}"
+
+    local count
+    count="$(tr -d -c \'"${chars}"\' < "$filename" | awk '{ print length; }')"
+
+    echo "${count}"
+}
+
+# count_char_in_str <content> <chars>
+function count_char_in_str {
+    local -r content="${1:?no filename passed to count_char_in_file}"
+    local -r chars="${2:?no chars passed to count_char_in_file}"
+
+    local -i count
+    count="$(echo "${content}" | tr -d -c \'"${chars}"\' | awk '{ print length; }')"
+
+    echo "$count"
+}
+
+
 function push() {
     local -r param_count="${#@}"
 
@@ -898,7 +926,7 @@ function push() {
 # elements
 function list_elements() {
     local -r list_str="${1:?no list provided to list_elements}"
-    local -r elements=$(avoid_trailing "${LIST_SUFFIX}" "$(avoid_starting "${LIST_PREFIX}" "${list_str}")")
+    local -r elements=$(strip_trailing "${LIST_SUFFIX}" "$(strip_starting "${LIST_PREFIX}" "${list_str}")")
 
     echo "${elements}"
     return 0
@@ -1093,11 +1121,26 @@ function dict_add() {
 function file_exists() {
     local filepath="${1:?filepath is missing}"
 
-    if [[ -f "${filepath}" ]]; then
+    if [ -f "${filepath}" ]; then
+        debug "file_exists(${filepath})" "exists"
         return 0;
     else
+        debug "file_exists(${filepath})" "does not exists"
         return 1;
     fi
+}
+
+# find_in_file <filepath> <key>
+#
+# Finds the first occurance of <key> in the given file
+# and if that line is the form "<key>=<value>" then 
+# it returns the value, otherwise it will return 
+# the line.
+function find_in_file() {
+    local -r filepath="${1:?find_in_file() called but no filepath passed in!}"
+    local -r key="${2:?find_in_file() called but key value passed in!}"
+
+
 }
 
 
@@ -1113,18 +1156,14 @@ function directory_exists() {
 
 function get_file() {
     local -r filepath="${1:?get_file() called but no filepath passed in!}"
-
-    if [[ "${filepath}" == "_line" || "${filepath}" == "_contents" ]]; then
-        error "called get_file(${filepath}) with an invalid filepath!"
-        return 1
-    fi
     
-    if file_exists "$filepath"; then
+    if file_exists "${filepath}"; then
+        debug "get_file(${filepath})" "getting data"
         local content
         { IFS= read -rd '' content <"${filepath}";} 2>/dev/null
         printf '%s' "${content}"
     else
-        debug "call to get_file(${filepath}) had invalid filepath"
+        debug "get_file(${filepath})" "call to get_file(${filepath}) had invalid filepath"
         return 1
     fi
 }
@@ -1204,7 +1243,7 @@ function get_files() {
         if [[ "${filter}" == "--relative"  ]]; then
             ABS_OR_REL="REL"
         elif starts_with '!' "${filter}"; then
-            filter="$(avoid_starting "!" "${filter}")"
+            filter="$(strip_starting "!" "${filter}")"
             BASE_CMD="${BASE_CMD} -not -path \"*${filter}*\""
         else
             BASE_CMD="${BASE_CMD} -path \"*${filter}*\""

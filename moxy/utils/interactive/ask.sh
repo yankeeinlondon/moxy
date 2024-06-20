@@ -7,12 +7,7 @@ function default_validator () {
     return 0;
 }
 
-function exit_ask() {
-    local -r msg="${1:-}"
-    clear
-    log "${msg}"
-    exit
-}
+
 
 let DIALOG_OK=0;
 let DIALOG_CANCEL=1;
@@ -24,6 +19,17 @@ let DIALOG_TIMEOUT=5;
 let DIALOG_ERR=-1;
 
 
+
+# exit_ask <msg> <is_error>
+function exit_ask() {
+    local -r msg="${1:-Goodbye}"
+
+    clear
+    log ""
+    echo "${msg}"
+    
+    exit
+}
 
 # ask
 #
@@ -52,8 +58,15 @@ function tui() {
     echo "${var}"
 }
 
-# ask_yes_no <Prompt>
-# 
+# ask_password <title> <height> <width> 
+function ask_radiolist() {
+    local -r title="${1:?No title provided to ask_yes_no()}"
+    local -r height="${2:?No height provided to ask_yes_no()}"
+    local -r width="${3:?No width provided to ask_yes_no()}"
+
+}
+
+# ask_password <title> <height> <width> <ok> <cancel> <exit>
 function ask_password() {
     local -r title="${1:?No title provided to ask_yes_no()}"
     local -r height="${2:?No height provided to ask_yes_no()}"
@@ -66,12 +79,12 @@ function ask_password() {
 
     if [[ "$tool" == "dialog" ]]; then 
         choice=$(
-            dialog --ok-label "${ok_btn}" --cancel-label "${cancel_btn}" --inputbox "${title}" "${height}" "${width}"  3>&2 2>&1 1>&3
-        ) || exit_ask "${exit_msg}"
+            dialog --ok-label "${ok_btn}" --cancel-label "${cancel_btn}" --passwordbox "${title}" "${height}" "${width}"  3>&2 2>&1 1>&3
+        ) || exit_ask "${exit_msg}" "false"
     elif [[ "$tool" == "whiptail" ]]; then 
         choice=$(
-            whiptail --ok-btn "${ok_btn}" --cancel-btn "${cancel_btn}" --inputbox "${title}" "${height}" "${width}"  3>&2 2>&1 1>&3
-        ) || exit_ask "${exit_msg}"
+            whiptail --ok-btn "${ok_btn}" --cancel-btn "${cancel_btn}" --passwordbox "${title}" "${height}" "${width}"  3>&2 2>&1 1>&3
+        ) || exit_ask "${exit_msg}" "false"
     else
         error "can't ask for password as no TUI is available [${tool}]"
         exit 1
@@ -84,10 +97,31 @@ function ask_password() {
         log ""
         exit 1
     else 
-        log "${choice}"
-        log "Tui: $(tui)"
+        echo "${choice}"
+    fi
+}
+
+# ask_inputbox <title> <height> <width> <ok> <cancel> <exit>
+function ask_inputbox() {
+    local -r title="${1:?No title provided to ask_yes_no()}"
+    local -r height="${2:?No height provided to ask_yes_no()}"
+    local -r width="${3:?No width provided to ask_yes_no()}"
+    local -r ok_btn="${4:-Ok}"
+    local -r cancel_btn="${5:-Cancel}"
+    local -r exit_msg="${6:-Goodbye}"
+    local -r tool="$(tui)"
+    local choice
+
+    if [[ "$tool" == "dialog" ]]; then 
+        dialog --ok-label "${ok_btn}" --cancel-label "${cancel_btn}" --inputbox "${title}" "${height}" "${width}"  3>&2 2>&1 1>&3 || exit_ask "${exit_msg}"
+    fi
+    if [[ "$tool" == "whiptail" ]]; then 
+        choice=$(
+            whiptail --ok-btn "${ok_btn}" --cancel-btn "${cancel_btn}" --inputbox "${title}" "${height}" "${width}"  3>&2 2>&1 1>&3
+        ) || exit_ask "${exit_msg}"
     fi
 
+    echo "${choice}"
 }
 
 

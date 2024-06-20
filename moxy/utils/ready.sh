@@ -8,6 +8,7 @@ source "./utils/proxmox.sh"
 # shellcheck source="./interactive/ask.sh"
 source "./utils/interactive/ask.sh"
 
+CONFIG_FILE="${HOME}/.moxy"
 
 
 if ! ui_availability; then
@@ -25,13 +26,45 @@ if ! is_pve_node; then
         error "- to use moxy on a non-pve node you'll need to have 'wget' installed"
         exit 1
     fi
-    CONFIG=$(get_moxy_config)
-    if ! contains "$CONFIG" "API_KEY"; then
+    
+    if ! file_contains "${CONFIG_FILE}" "API_TOKEN"; then
         if ! has_env "PVEAPIToken"; then
             msg="Save API Token\n\nYou are not on a PVE node so we will need to use the Proxmox API:\n\n  - to do that we will need an API_KEY\n  - you can provide the ENV variable PVEAPIToken\n  - however, we can store your key in ~/.moxy\n  - permissions will be set so only you can access it\n\n\n  - if you don't have a key you can create via UI\n\nIf you'd prefer just to use ENV vars then exit, export the variable and run moxy again. \n\n";
 
-            ask_password "${msg}" 23 60 "Save Key" "Exit" "- add ${GREEN}PVEAPIToken${RESET} ENV variable and then reload Moxy"
+            API="$(ask_inputbox "${msg}" 23 60 "Save Key" "Exit" "- add ${GREEN}PVEAPIToken${RESET} ENV variable and then reload Moxy.")"
+
+            if [ "${#API}" -lt 8 ]; then
+                clear
+                log ""
+                log ""
+                error "The key you passed in was too short [${#API} characters], please refer to the Promox docs for how to generate the key and test it out with Postman or equivalent if you're unsure if it's right"
+                exit 1
+            fi
+
+            printf "%s\n" "API_TOKEN=$(strip_starting "PVEAPIToken=" "${API}")" >> "${HOME}/.moxy"
+            chmod 600 "${HOME}/.moxy"
         fi
+    fi
+
+    if ! file_contains "${CONFIG_FILE}" "NODE="; then
+
+        msg="Add PVE Node\n\nIn order to start we will need at least one PVE node to work on. If you choose a node that is a cluster node then all of the nodes in the cluster will be made available\n\nPlease enter the IPv4 address of your first node:"
+
+        NODE="$(ask_inputbox "${msg}" 23 60 "Add Node" "Exit")"
+        # DOTS="$(count_char_in_str "$NODE" ".")"
+
+        # if [[ "$DOTS" -ne "3" ]]; then
+        #     warn "the node's IP address had ${DOTS} '.' characters instead of the expected 3; leading to suspicions it could be malformed"
+        # fi
+
+        printf "%s\n" "NODE=${NODE}" >> "${HOME}/.moxy"
+        chmod 600 "${HOME}/.moxy"
     fi
 fi
 
+
+if file_contains "${CONFIG_FILE}" "API_TOKEN"; then
+    KEY=$(find_in_file "${CONFIG_FILE}" "API_TOKEN") || error "could not find API_TOKEN"
+    
+
+fi

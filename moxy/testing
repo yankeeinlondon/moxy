@@ -2,6 +2,7 @@
 
 . "./utils/shared.sh"
 . "./utils/interactive/ask.sh"
+. "./utils/fetch.sh"
 
 if has_command "dialog"; then
     log "dialog"
@@ -12,3 +13,18 @@ else
     log "no whiptail"
 fi
 
+
+log "file exists: $(file_exists "${HOME}/.moxy" && echo "exists" || echo "does-not-exist")  "
+
+if file_contains "${HOME}/.moxy" "API_"; then
+    echo "found API"
+else
+    echo "no API"
+fi
+
+PVE=$(http_status_code "https://192.168.100.2:8006/#v1:0:18:4:::::::")
+
+echo "PVE code: ${PVE}"
+
+
+printf "%s" "$(get_html "https://192.168.100.2:8006")"
