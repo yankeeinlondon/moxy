@@ -2,11 +2,10 @@
 
 # Tests whether a user is ready to start using Moxy
 
-# shellcheck source="./proxmox.sh"
-source "./utils/proxmox.sh"
+# shellcheck source="./shared.sh"
+. "./utils/shared.sh"
 
-# shellcheck source="./interactive/ask.sh"
-source "./utils/interactive/ask.sh"
+
 
 CONFIG_FILE="${HOME}/.moxy"
 
@@ -61,6 +60,8 @@ if ! is_pve_node; then
         chmod 600 "${HOME}/.moxy"
     fi
 fi
+
+pve_version_check;
 
 
 if file_contains "${CONFIG_FILE}" "API_TOKEN"; then

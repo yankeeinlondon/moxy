@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# shellcheck source="./shared.sh"
-source "./utils/shared.sh"
+# shellcheck source="./logging.sh"
+source "./utils/logging.sh"
 
 # is_pve_node
 #
@@ -25,6 +25,22 @@ function is_pve_node() {
     fi
 }
 
+
+pve_version_check() {
+    if is_pve_node; then
+        # shellcheck disable=SC2046
+        if [ $(pveversion | grep -c "pve-manager/7\.[0-9]") -eq 0 ]; then
+            echo -e "${CROSS} This version of Proxmox Virtual Environment is not supported"
+            echo -e "Requires PVE Version 7.0 or higher"
+            echo -e "Exiting..."
+            sleep 2
+            exit
+        fi
+    else
+        # check version with API
+        log "API Version Check not implemented yet"
+    fi
+}
 
 
 

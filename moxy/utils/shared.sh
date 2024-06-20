@@ -1,35 +1,23 @@
 #!/usr/bin/env bash
 
-# shellcheck source="./errors.sh"
-source "./utils/errors.sh"
-# shellcheck source="./env.sh"
-source "./utils/env.sh"
+# LOADS ALL SHARED FUNCTIONS FOR MOXY
+# WHICH ARE KEPT IN OTHER FILES SIMPLY
+# FOR ORGANIZATIONAL PURPOSES
 
-#shellcheck disable=SC2034
-RESET='\033[0m'
-GREEN='\033[38;5;2m'
-RED='\033[38;5;1m'
-YELLOW='\033[38;5;3m'
-#shellcheck disable=SC2034
-BOLD='\033[1m'
-#shellcheck disable=SC2034
-NO_BOLD='\033[21m'
-#shellcheck disable=SC2034
-DIM='\033[2m'
-#shellcheck disable=SC2034
-NO_DIM='\033[22m'
-#shellcheck disable=SC2034
-ITALIC='\033[3m'
-#shellcheck disable=SC2034
-NO_ITALIC='\033[23m'
-#shellcheck disable=SC2034
-STRIKE='\033[9m'
-#shellcheck disable=SC2034
-NO_STRIKE='\033[29m'
-#shellcheck disable=SC2034
-REVERSE='\033[7m'
-#shellcheck disable=SC2034
-NO_REVERSE='\033[27m'
+
+# shellcheck source="./errors.sh"
+. "./utils/errors.sh"
+# shellcheck source="./env.sh"
+. "./utils/env.sh"
+# shellcheck source="./proxmox.sh"
+. "./utils/proxmox.sh"
+# shellcheck source="./errors.sh"
+. "./utils/errors.sh"
+# shellcheck source="./help.sh"
+. "./utils/help.sh"
+# shellcheck source="./logging.sh"
+. "./utils/logging.sh"
+
 
 function lc() {
     local -r str="${1-}"
@@ -41,123 +29,6 @@ function uc() {
     echo "${str}" | tr -s '[:lower:]' '[:upper:]'
 }
 
-function log() {
-    printf "%b\\n" "${*}" >&2
-}
-
-function debug() {
-    DEBUG=$(lc "$DEBUG")
-    if [[ "${DEBUG}" != "false" ]]; then
-        if (( $# > 1 )); then
-            local fn="$1"
-
-            shift
-            local regex=""
-            local lower_fn="" 
-            lower_fn=$(lc "$fn")
-            regex="(.*[^a-z]+|^)$lower_fn($|[^a-z]+.*)"
-
-            if [[ "${DEBUG}" == "true" || "${DEBUG}" =~ $regex ]]; then
-                log "       ${GREEN}◦${RESET} ${BOLD}${fn}()${RESET} → ${*}"
-            fi
-        else
-            log "       ${GREEN}DEBUG: ${RESET} → ${*}"
-        fi
-    fi
-}
-
-function info() {
-    log "${GREEN}INFO ${RESET} ==> ${*}"
-}
-
-function warn() {
-    log "${YELLOW}WARN ${RESET} ==> ${*}"
-}
-
-# error <msg> <[code]>
-#
-# sends an error message to STDERR and if an error code
-# has been included then it will return that error code too
-function error() {
-    local -r possible_code="${2:-error code not-specified}"
-
-    if [[ "$possible_code" == "error code not-specified" ]]; then
-        log "${RED}ERROR ${RESET} ==> ${*}"
-    else
-        log "${RED}ERROR [${possible_code}] ${RESET} ==> ${1}"
-        declare code=$(( possible_code ))
-
-        debug "error" "returning with code ${code}"
-
-        return $code
-    fi
-}
-
-# error_handler
-function error_handler() {
-    local -r exit_code="$?"
-    local -r line_number="$1"
-    local -r command="$2"
-    log "  [${RED}x${RESET}] ERROR in line $line_number [ exit code $exit_code ] while executing command \"${DIM}$command${RESET}\""
-}
-
-# allow_errors()
-#
-# Allows for non-zero return-codes to avoid being sent to the error_handler
-# and is typically used to temporarily check on an external state from the shell
-# where an error might be encountered but which will be handled locally
-function allow_errors() {
-    set +e
-}
-
-
-
-function error_state_fails() {
-    local -r current_state=$-
-    case $current_state in
-
-        *e*) return 0;;
-        *) return 1;;
-
-    esac
-}
-
-# pause_errors()
-#
-# Passes back the current state of error handling so it may be restored
-# later but then disables it at this point.
-function pause_errors() {
-    local -r current_state=$-
-    case $current_state in
-
-        *e*) echo "true";;
-        *) echo "false";;
-
-    esac
-
-    return 0
-}
-
-function restore_errors() {
-    local -r prior="${1:?no prior state was passed into restore_errors}"
-
-    if [[ "$prior" == "true" ]]; then
-        set -e
-    fi
-}
-
-# catch_errors()
-#
-# Catches all errors found in a script -- including pipeline errors -- and
-# sends them to an error handler to report the error.
-function catch_errors() {
-  set -Eeuo pipefail
-  trap 'error_handler $LINENO "$BASH_COMMAND"' ERR
-}
-
-function nbsp() {
-    printf '\xc2\xa0'
-}
 
 # is_array <any>
 # 

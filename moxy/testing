@@ -27,4 +27,6 @@ PVE=$(http_status_code "https://192.168.100.2:8006/#v1:0:18:4:::::::")
 echo "PVE code: ${PVE}"
 
 
-printf "%s" "$(get_html "https://192.168.100.2:8006")"
+KEY=$(find_in_file "${CONFIG_FILE}" "API_TOKEN") || error "could not find API_TOKEN"
+
+echo "KEY: ${KEY}"

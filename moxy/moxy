@@ -2,6 +2,37 @@
 
 export BACK_TITLE="Moxy"
 
+# preparatory to make sure we're ready to start
+# user has required programs and ENV is setup
+# correctly
 . "./utils/ready.sh"
+# load in support functions
 . "./utils/shared.sh"
 
+# moxy
+#
+# main line program which 
+function moxy() {
+    local -r cmd=${1:-help}
+
+    # strict error handling by default
+    catch_errors
+
+    case $cmd in 
+        help) moxy_help
+
+    esac
+
+    exit
+
+}
+
+
+# if [[ "${1}" == "lxc" ]]; then
+
+#     DISTRO=$(ask_radiolist "${CHOOSE_LXC_DISTRO}")
+
+
+# fi
+
+moxy "$@"
