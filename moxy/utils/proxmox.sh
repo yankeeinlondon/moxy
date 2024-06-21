@@ -127,7 +127,7 @@ function get_pvesh() {
     local response
     response="$(printf "%s" "$(pvesh get "${path}" --output-format=json)")"
 
-        if not_empty "${response}" && not_empty "${filter}"; then
+    if not_empty "${response}" && not_empty "${filter}"; then
         debug "get_pve(${path})" "got a response, now filtering with: ${filter}" 
         response="$(printf "%s" "${response}" | jq --raw-output "${filter}")" || error "Problem using jq with filter '${filter}' on a response [${#response} chars] from the URL ${url}"
         printf "%s" "${response}"
@@ -213,7 +213,7 @@ function pve_nodes() {
 function pve_node_config() {
     local nodes
     if is_pve_node; then
-        nodes=$(get_pvesh "/cluster/config/nodes" )
+        nodes=$(get_pvesh "/cluster/config/nodes" ".data")
     else
         nodes="$(get_pve "/cluster/config/nodes" ".data")"
     fi
