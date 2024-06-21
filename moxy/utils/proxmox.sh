@@ -74,14 +74,16 @@ function pve_version() {
     if is_pve_node; then
         local version
         version=$(pveversion)
-        version="$(strip_after_last "/"  "$(version)")"
-        version="$(retain_after "/" "${version}")"
+        version=$(strip_after_last "/"  "${version}")
+        version=$(retain_after "pve-manager/" "${version}")
 
         echo "${version}"
+        return 0
     else
         local -r version="$(get_pve_version)"
 
         echo "${version}"
+        return 0
     fi
 }
 

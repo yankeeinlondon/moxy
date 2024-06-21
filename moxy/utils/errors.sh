@@ -119,4 +119,3 @@ function manage_err() {
     echo "${set_state}"
     return 0
 }
-
