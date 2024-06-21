@@ -118,13 +118,29 @@ function get_pve_version() {
 #
 # Gets the nodes by querying either the <host> passed in
 # or the default host otherwise.
-function get_nodes() {
+function get_pve_nodes() {
     local -r host=${1:?no PVE hose passed to get_pve_url()}
     local -r url="$(get_pve_url "${host}" "/nodes")"
     local -r token=""
     local -r outcome=$(curl -X GET -H \"Authorization=PVEAPIToken="${token}"\" "${url}")
 
     echo "${outcome}"
+}
+
+function get_pve() {
+    local -r path=${1:?no path passed to get_pve()}
+    local -r filter=${2:-".data"}
+    local -r host=${3:-"$(get_default_node)"}
+    local -r url="$(get_pve_url "${host}" "${path}")"
+    local response
+    response="$(fetch_get "${url}" "$(pve_auth_header)")"
+
+    if not_empty "${response}" && not_empty "${filter}"; then
+        response="$(printf "%s" "$response" | jq --raw-output "${filter}")"
+        printf "%s" "${response}"
+    else 
+        echo "${response}"
+    fi
 }
 
 function get_next_container_id() {

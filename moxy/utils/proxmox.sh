@@ -119,3 +119,42 @@ function next_container_id() {
         return 0
     fi
 }
+
+function get_pvesh() {
+    local -r path=${1:?no path provided to get_pvesh())}
+
+    printf "%s" "$(psesh get "${path}" --output-format=json)"
+}
+
+function pve_resources() {
+    local resources
+    if is_pve_node; then
+        resources="$(get_pvesh "/cluster/resources")"
+    else 
+        resources="$(get_pve "/cluster/resources")"
+    fi
+
+    printf "%s" "$(list "${resources}")"
+}
+
+function pve_nodes() {
+    local nodes
+    if is_pve_node; then
+        nodes=$(pvesh get /nodes --output-format=json)
+    else
+        nodes="$(get_pve "/nodes")"
+    fi
+
+    printf "%s" "$(list "${nodes}")"
+}
+
+function pve_node_config() {
+    local nodes
+    if is_pve_node; then
+        nodes=$(pvesh get /cluster/config/nodes --output-format=json)
+    else
+        nodes="$(get_pve "/cluster/config/nodes")"
+    fi
+
+    printf "%s" "$(list "${nodes}")"
+}
