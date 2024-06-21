@@ -123,7 +123,7 @@ function next_container_id() {
 function get_pvesh() {
     local -r path=${1:?no path provided to get_pvesh())}
 
-    printf "%s" "$(psesh get "${path}" --output-format=json)"
+    printf "%s" "$(pvesh get "${path}" --output-format=json)"
 }
 
 function pve_resources() {
