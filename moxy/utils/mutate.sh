@@ -111,6 +111,7 @@ function replace() {
     local -r find="${1:?the FIND string was not passed to replace}"
     local -r replace="${2:?the REPLACE string was not passed to replace}"
     local -r content="${3:-}"
+    local new_content
     debug "replace" "replacing \"${find}\" with \"${replace}\""
 
     new_content="${content//"${find}"/"${replace}"}"
@@ -537,4 +538,72 @@ function strip_trailing() {
     echo "${content%"$avoid"}"
 
     return 0
+}
+
+# strip_after <find> <content>
+#
+# Strips all characters after finding <find> in content inclusive
+# of the <find> text.
+#
+# Ex: strip_after ":" "hello:world:of:tomorrow" → "hello"
+function strip_after() {
+    local -r find="${1:?strip_after() requires that a find parameter be passed!}"
+    local -r content="${2:-}"
+
+    if not_empty "content"; then
+        echo "${content%%"${find}"*}"
+    else 
+        echo ""
+    fi
+}
+
+# strip_after_last <find> <content>
+#
+# Strips all characters after finding the FINAL <find> substring 
+# in the content. 
+#
+# Ex: strip_after_last ":" "hello:world:of:tomorrow" → "hello:world:of"
+function strip_after_last() {
+    local -r find="${1:?strip_after() requires that a find parameter be passed!}"
+    local -r content="${2:-}"
+
+    if not_empty "content"; then
+        echo "${content%%"${find}"*}"
+    else 
+        echo ""
+    fi
+}
+
+# retain_after <find> <content>
+#
+# Retains all the characters after the first instance of <find> is
+# found.
+#
+# Ex: strip_after ":" "hello:world:of:tomorrow" → "world:of:tomorrow"
+function retain_after() {
+    local -r find="${1:?strip_after() requires that a find parameter be passed!}"
+    local -r content="${2:-}"
+
+    if not_empty "content"; then
+        echo "${content#"${find}"*}"
+    else 
+        echo ""
+    fi
+}
+
+# retain_after_last <find> <content>
+#
+# Retains all the characters after the last instance of <find> is
+# found.
+#
+# Ex: strip_after ":" "hello:world:of:tomorrow" → "tomorrow"
+function retain_after_last() {
+    local -r find="${1:?strip_after() requires that a find parameter be passed!}"
+    local -r content="${2:-}"
+
+    if not_empty "content"; then
+        echo "${content##"${find}"*}"
+    else 
+        echo ""
+    fi
 }

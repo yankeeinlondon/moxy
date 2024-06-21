@@ -47,6 +47,23 @@ function find_in_file() {
     fi
 }
 
+# os() <[vmid]>
+#
+# will try to detect the operating system of the host computer
+# or a container if a <vmid> is passed in as a parameter.
+function os() {
+    local -r vm_id="$1:-";
+
+    if is_empty "${vm_id}"; then
+        # local/host detection
+        
+
+    else
+        # TODO
+        error "have not implemented yet"
+    fi
+}
+
 # findall_in_file <filepath> <key>
 #
 # Finds all occurances of <key> in the given file

@@ -70,10 +70,11 @@ function get_default_node() {
 # node.
 function pve_version() {
     if is_pve_node; then
-        # shellcheck disable=SC2207
-        local -ra parts=( $(split_on "/"" $(pveversion)") )
+        local version
+        version="$(strip_after "/"  "$(pveversion)")"
+        version="$(strip_before "/" "${version}")"
 
-        echo "${parts[1]}"
+        echo "${version}"
     else
         local -r version="$(get_pve_version)"
 
