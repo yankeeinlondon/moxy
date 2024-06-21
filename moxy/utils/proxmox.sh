@@ -122,16 +122,78 @@ function next_container_id() {
 
 function get_pvesh() {
     local -r path=${1:?no path provided to get_pvesh())}
+    local -r filter=${2:-}
 
-    printf "%s" "$(pvesh get "${path}" --output-format=json)"
+    local response
+    response="$(printf "%s" "$(pvesh get "${path}" --output-format=json)")"
+
+        if not_empty "${response}" && not_empty "${filter}"; then
+        debug "get_pve(${path})" "got a response, now filtering with: ${filter}" 
+        response="$(printf "%s" "${response}" | jq --raw-output "${filter}")" || error "Problem using jq with filter '${filter}' on a response [${#response} chars] from the URL ${url}"
+        printf "%s" "${response}"
+    else 
+        echo "${response}"
+    fi
 }
 
 function pve_resources() {
     local resources
     if is_pve_node; then
-        resources="$(get_pvesh "/cluster/resources")"
+        resources="$(get_pvesh "/cluster/resources" ".data")"
     else 
-        resources="$(get_pve "/cluster/resources")"
+        resources="$(get_pve "/cluster/resources" ".data")"
+    fi
+
+    printf "%s" "$(list "${resources}")"
+}
+
+function pve_lxc_containers() {
+    local -r path="/cluster/resources"
+    local -r filter=".data.[] | select(.type == \"lxc\")"
+    local resources
+    if is_pve_node; then
+        resources="$(get_pvesh "${path}" "${filter}")"
+    else 
+        resources="$(get_pve "${path}" "${filter}")"
+    fi
+
+    printf "%s" "$(list "${resources}")"
+}
+
+function pve_vm_containers() {
+    local -r path="/cluster/resources"
+    local -r filter=".data.[] | select(.type == \"qemu\")"
+    local resources
+    if is_pve_node; then
+        resources="$(get_pvesh "${path}" "${filter}")"
+    else 
+        resources="$(get_pve "${path}" "${filter}")"
+    fi
+
+    printf "%s" "$(list "${resources}")"
+}
+
+function pve_storage() {
+    local -r path="/cluster/resources"
+    local -r filter=".data.[] | select(.type == \"storage\")"
+    local resources
+    if is_pve_node; then
+        resources="$(get_pvesh "${path}" "${filter}")"
+    else 
+        resources="$(get_pve "${path}" "${filter}")"
+    fi
+
+    printf "%s" "$(list "${resources}")"
+}
+
+function pve_sdn() {
+    local -r path="/cluster/resources"
+    local -r filter=".data.[] | select(.type == \"sdn\")"
+    local resources
+    if is_pve_node; then
+        resources="$(get_pvesh "${path}" "${filter}")"
+    else 
+        resources="$(get_pve "${path}" "${filter}")"
     fi
 
     printf "%s" "$(list "${resources}")"
@@ -140,9 +202,9 @@ function pve_resources() {
 function pve_nodes() {
     local nodes
     if is_pve_node; then
-        nodes=$(pvesh get /nodes --output-format=json)
+        nodes=$(get_pvesh "/nodes" ".data")
     else
-        nodes="$(get_pve "/nodes")"
+        nodes="$(get_pve "/nodes" ".data.[].")"
     fi
 
     printf "%s" "$(list "${nodes}")"
@@ -151,9 +213,9 @@ function pve_nodes() {
 function pve_node_config() {
     local nodes
     if is_pve_node; then
-        nodes=$(pvesh get /cluster/config/nodes --output-format=json)
+        nodes=$(get_pvesh "/cluster/config/nodes" )
     else
-        nodes="$(get_pve "/cluster/config/nodes")"
+        nodes="$(get_pve "/cluster/config/nodes" ".data")"
     fi
 
     printf "%s" "$(list "${nodes}")"
