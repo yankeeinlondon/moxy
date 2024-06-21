@@ -128,7 +128,8 @@ function get_pvesh() {
     response="$(printf "%s" "$(pvesh get "${path}" --output-format=json)")"
 
     if not_empty "${response}" && not_empty "${filter}"; then
-        debug "get_pve(${path})" "got a response, now filtering with: ${filter}" 
+        debug "get_pve(${path})" "got a response, now filtering with: ${filter}"
+        
         response="$(printf "%s" "${response}" | jq --raw-output "${filter}")" || error "Problem using jq with filter '${filter}' on a response [${#response} chars] from the URL ${url}"
         printf "%s" "${response}"
     else 

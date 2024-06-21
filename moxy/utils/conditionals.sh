@@ -55,7 +55,12 @@ function not_empty() {
     if [ -z "$1" ]; then
         return 1
     else
-        return 0
+        local -r arg="${1}"
+        if [[ "${#arg}" == "0"  ]]; then
+            return 1
+        else
+            return 0
+        fi
     fi
 }
 
