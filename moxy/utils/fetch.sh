@@ -126,3 +126,17 @@ function get_nodes() {
 
     echo "${outcome}"
 }
+
+function get_next_container_id() {
+    local host
+    if not_empty "$1"; then
+        host="${1}"
+    else
+        host="$(get_default_node)"
+    fi
+    local -r url=$(get_pve_url "${host}" "/cluster/nextid")
+    local -r resp=$(fetch_get "${url}" "$(pve_auth_header)")
+    local -r id="$(echo "${resp}" | jq --raw-output '.data')"
+    
+    printf "%s" "${id}"
+}

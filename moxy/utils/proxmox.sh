@@ -108,20 +108,14 @@ function has_proxmox_api_key() {
 # next_container_id
 #
 # If executing on a PVE node it will return the lowest available
-# PVE ID in the cluster. If running external to the cluster it use
-# the DEFAULT_TEMPLATE_ID environment variable.
+# PVE ID in the cluster.
 function next_container_id() {
-    local -r current=$(pause_errors)
     if is_pve_node; then
-        log "IS PVE NODE"
-        catch_errors
         local -r cid=$(pvesh get /cluster/nextid)
         echo "$cid"
-        catch_errors
         return 0
     else
-        restore_errors "$current"
-        echo "${DEFAULT_TEMPLATE_ID}"
+        printf "%s" "$(get_next_container_id "")"
         return 0
     fi
 }
