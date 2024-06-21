@@ -56,7 +56,7 @@ function os() {
 
     if is_empty "${vm_id}"; then
         # local/host detection
-        
+        return 0
 
     else
         # TODO

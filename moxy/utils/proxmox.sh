@@ -2,11 +2,13 @@
 
 
 # shellcheck source="./env.sh"
-source "./utils/env.sh"
+. "./utils/env.sh"
 # shellcheck source="./logging.sh"
-source "./utils/logging.sh"
+. "./utils/logging.sh"
 # shellcheck source="./info.sh"
-source "./utils/info.sh"
+. "./utils/info.sh"
+# shellcheck source="./mutate.sh"
+. "./utils/mutate.sh"
 # shellcheck source="./errors.sh"
 . "./utils/errors.sh"
 # shellcheck source="./fetch.sh"
