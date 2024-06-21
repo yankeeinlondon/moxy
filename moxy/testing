@@ -2,27 +2,8 @@
 
 . "./utils/shared.sh"
 
-if has_command "dialog"; then
-    log "dialog"
-fi
-if has_command "whiptail"; then
-    log "whiptail"
-else
-    log "no whiptail"
-fi
-
-
-log "file exists: $(file_exists "${HOME}/.moxy" && echo "exists" || echo "does-not-exist")  "
-
-if file_contains "${HOME}/.moxy" "API_"; then
-    echo "found API"
-else
-    echo "no API"
-fi
 
 log "Nodes: $(list "$(findall_in_file "${HOME}/.moxy" "NODE=")" )"
-
-
 log "Auth: $(pve_auth_header)"
 log "Def node: $(get_default_node)"
 log "Version: $(pve_version)"

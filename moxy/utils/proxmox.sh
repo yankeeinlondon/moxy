@@ -19,20 +19,12 @@
 # Returns an exit code which indicates whether the given machine is
 # a PVE node or not.
 function is_pve_node() {
-    local return_code=0
-    allow_errors
-    # shellcheck disable=SC2009
-    ps -ef | grep pvedaemon | grep -v grep
-    return_code=$?
-    catch_errors
-
-    if [[ "${return_code}" == "0" ]]; then
-        debug "is_pve_node" "detected as PVE node"
+    if has_command "pveversion"; then
+        debug "is_pve_node" "is a pve node"
         return 0
     else
-        debug "is_pve_node" "is NOT a PVE node"
-        # shellcheck disable=SC2086
-        return ${ERR_NOT_PVE_NODE}
+        debug "is_pve_node" "is NOT a pve node"
+        return 1
     fi
 }
 
