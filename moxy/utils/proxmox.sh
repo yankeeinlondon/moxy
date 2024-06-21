@@ -73,8 +73,8 @@ function get_default_node() {
 function pve_version() {
     if is_pve_node; then
         local version
-        version="$(strip_after "/"  "$(pveversion)")"
-        version="$(strip_before "/" "${version}")"
+        version="$(strip_after_last "/"  "$(pveversion)")"
+        version="$(retain_after "/" "${version}")"
 
         echo "${version}"
     else
