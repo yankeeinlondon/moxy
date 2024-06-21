@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
 . "./utils/shared.sh"
-. "./utils/interactive/ask.sh"
-. "./utils/fetch.sh"
 
 if has_command "dialog"; then
     log "dialog"
@@ -22,11 +20,9 @@ else
     echo "no API"
 fi
 
-PVE=$(http_status_code "https://192.168.100.2:8006/#v1:0:18:4:::::::")
-
-echo "PVE code: ${PVE}"
+log "Nodes: $(list "$(findall_in_file "${HOME}/.moxy" "NODE=")" )"
 
 
-KEY=$(find_in_file "${CONFIG_FILE}" "API_TOKEN") || error "could not find API_TOKEN"
-
-echo "KEY: ${KEY}"
+log "Auth: $(pve_auth_header)"
+log "Def node: $(get_default_node)"
+log "Version: $(pve_version)"

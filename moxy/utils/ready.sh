@@ -2,12 +2,20 @@
 
 # Tests whether a user is ready to start using Moxy
 
-# shellcheck source="./shared.sh"
-. "./utils/shared.sh"
-
-
-
-CONFIG_FILE="${HOME}/.moxy"
+# shellcheck source="./env.sh"
+. "./utils/env.sh"
+# shellcheck source="./errors.sh"
+. "./utils/errors.sh"
+# shellcheck source="./logging.sh"
+. "./utils/logging.sh"
+# shellcheck source="./conditionals.sh"
+. "./utils/conditionals.sh"
+# shellcheck source="./mutate.sh"
+. "./utils/mutate.sh"
+# shellcheck source="./info.sh"
+. "./utils/info.sh"
+# shellcheck source="./proxmox.sh"
+. "./utils/proxmox.sh"
 
 
 if ! ui_availability; then
@@ -20,13 +28,19 @@ if ! ui_availability; then
     exit 1
 fi
 
+if ! has_command "jq"; then
+    log "- you must have ${BOLD}${GREEN}jq${RESET} available on your system to run Moxy"
+    log "- it is a very popular library and should be available on every platform"
+    exit 1
+fi
+
 if ! is_pve_node; then
     if ! has_command "wget"; then
         error "- to use moxy on a non-pve node you'll need to have 'wget' installed"
         exit 1
     fi
     
-    if ! file_contains "${CONFIG_FILE}" "API_TOKEN"; then
+    if ! file_contains "${MOXY_CONFIG}" "API_TOKEN"; then
         if ! has_env "PVEAPIToken"; then
             msg="Save API Token\n\nYou are not on a PVE node so we will need to use the Proxmox API:\n\n  - to do that we will need an API_KEY\n  - you can provide the ENV variable PVEAPIToken\n  - however, we can store your key in ~/.moxy\n  - permissions will be set so only you can access it\n\n\n  - if you don't have a key you can create via UI\n\nIf you'd prefer just to use ENV vars then exit, export the variable and run moxy again. \n\n";
 
@@ -40,21 +54,17 @@ if ! is_pve_node; then
                 exit 1
             fi
 
-            printf "%s\n" "API_TOKEN=$(strip_starting "PVEAPIToken=" "${API}")" >> "${HOME}/.moxy"
+            printf "%s\n" "API_TOKEN=$(strip_leading "PVEAPIToken=" "${API}")" >> "${HOME}/.moxy"
+            printf "%s\n" "DEFAULT_TOKEN=$(strip_leading "PVEAPIToken=" "${API}")" >> "${HOME}/.moxy"
             chmod 600 "${HOME}/.moxy"
         fi
     fi
 
-    if ! file_contains "${CONFIG_FILE}" "NODE="; then
+    if ! file_contains "${MOXY_CONFIG}" "NODE="; then
 
         msg="Add PVE Node\n\nIn order to start we will need at least one PVE node to work on. If you choose a node that is a cluster node then all of the nodes in the cluster will be made available\n\nPlease enter the IPv4 address of your first node:"
 
         NODE="$(ask_inputbox "${msg}" 23 60 "Add Node" "Exit")"
-        # DOTS="$(count_char_in_str "$NODE" ".")"
-
-        # if [[ "$DOTS" -ne "3" ]]; then
-        #     warn "the node's IP address had ${DOTS} '.' characters instead of the expected 3; leading to suspicions it could be malformed"
-        # fi
 
         printf "%s\n" "NODE=${NODE}" >> "${HOME}/.moxy"
         chmod 600 "${HOME}/.moxy"
@@ -64,8 +74,8 @@ fi
 pve_version_check;
 
 
-if file_contains "${CONFIG_FILE}" "API_TOKEN"; then
-    KEY=$(find_in_file "${CONFIG_FILE}" "API_TOKEN") || error "could not find API_TOKEN"
+if file_contains "${MOXY_CONFIG}" "API_TOKEN"; then
+    KEY=$(find_in_file "${MOXY_CONFIG}" "API_TOKEN") || error "could not find API_TOKEN"
     
 
 fi

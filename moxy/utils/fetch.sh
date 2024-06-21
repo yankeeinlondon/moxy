@@ -1,28 +1,34 @@
 #!/usr/bin/env bash
 
 
-HTTP_HEADERS="${HTTP_HEADERS:- -H \"Accept=*/*\" -H \"User-Agent=PostmanRuntime/7.39.0\" -H \"Accept-Encoding=gzip,deflate,br\"}"
+HTTP_HEADERS="-H \"Accept: */*\" -H \"Accept-Encoding: gzip,deflate,br\"}"
 
 # provides a REST API for bash
 
-# shellcheck source="./shared.sh"
-source "./utils/shared.sh"
+# shellcheck source="./env.sh"
+source "./utils/env.sh"
+# shellcheck source="./logging.sh"
+source "./utils/logging.sh"
 
 function fetch_get() {
     local -r url=${1:?no URL was passed to fetch_get()}
+    local -r auth=${2:?-}
+    local -r cmd="curl -X GET --location ${url} ${HTTP_HEADERS} ${auth} --insecure --silent"
+    debug "fetch_get()" "${cmd}"
+    local -r req=$(eval "$cmd")
+    debug "fetch_get()" "response -> ${req}"
 
+    printf "%s" "${req}"
 }
 
 # get_html <url>
 function get_html() {
     local -r url=${1:?no URL was passed to fetch_get()}
-
-    local -r resp="$(curl --location "${url} --insecure")"
-
-    debug "get_html(${url})" "headers are ${HTTP_HEADERS}"
+    local -r resp="$(curl --location "${url}" --insecure)"
     
     printf "%s" "${resp}"
 }
+
 
 function http_status_code() {
     local -r url=${1:?no URL was passed to fetch_get()}
@@ -31,7 +37,9 @@ function http_status_code() {
     printf "%s" "$(strip_trailing "%" "${http_code}")"
 }
 
-
+# get_pve_url <host> <path>
+#
+# Combines the base URL, the host and the path
 function get_pve_url() {
     local -r host=${1:?no PVE hose passed to get_pve_url()}
     local -r path=${2:-/}
@@ -44,11 +52,72 @@ function get_pve_url() {
     fi
 }
 
-function server_available() {
-    local -r host=${1:?no PVE hose passed to get_pve_url()}
+function reverse_lookup() {
+    local -r address="${1:?no address passed into reverse_lookup()}"
 
+    if has_command "dig"; then
+        local -r name=$(remove_trailing "." "$(dig -x "${address}" +short)")
+
+        echo "${name}"
+        return 0
+    else
+        if has_command "host"; then
+            local -r name=$(last "$(split_on " " "$(host "${address}")")")
+
+            printf "%s" "$(remove_trailing "." "${name}")"
+            return 0
+        else
+            debug "reverse_lookup(${address})" "dig and host are not installed on the system!"
+            error "can not do a reverse lookup unless dig or host are installed on the host system"
+        fi
+
+    fi
 }
 
+# pve_auth_header()
+#
+# Returns all the required text to add an Authentication header
+# to curl.
+function pve_auth_header() {
+    local -r def_token=$(find_in_file "${MOXY_CONFIG}" "DEFAULT_TOKEN")
+
+    if not_empty "$def_token"; then
+        echo "-H \"Authorization:PVEAPIToken=${def_token}\""
+        return 0
+
+    else
+        # shellcheck disable=SC2207
+        local -ra all_tokens=($(findall_in_file "${MOXY_CONFIG}" "API_TOKEN"))
+
+        if  [[ $(length "${all_tokens[@]}") -gt 0 ]]; then
+            echo "-H \"Authorization=PVEAPIToken=${all_tokens[0]}\""
+            return 0
+        else
+            return 1
+        fi
+    fi
+}
+
+
+# get_pve_version() <host::default_host>
+#
+# Gets the PVE version information via the Proxmox API.
+# You may optionally pass in a PVE HOST but if not
+# then the "default host" will be used.
+# shellcheck disable=SC2120
+function get_pve_version() {
+    local -r host="${1:-"$(get_default_node)"}"
+    local -r url=$(get_pve_url "${host}" "/version")
+    local -r resp=$(fetch_get "${url}" "$(pve_auth_header)")
+    local -r version="$(echo "${resp}" | jq --raw-output '.data.version')"
+    
+    printf "%s" "${version}"
+}
+
+# get_nodes() <[host]>
+#
+# Gets the nodes by querying either the <host> passed in
+# or the default host otherwise.
 function get_nodes() {
     local -r host=${1:?no PVE hose passed to get_pve_url()}
     local -r url="$(get_pve_url "${host}" "/nodes")"
@@ -57,5 +126,3 @@ function get_nodes() {
 
     echo "${outcome}"
 }
-
-

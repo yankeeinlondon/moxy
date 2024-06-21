@@ -63,3 +63,16 @@ function info() {
 function warn() {
     log "${YELLOW}${BOLD}WARN ${RESET} ==> ${*}"
 }
+
+# spinner
+#
+# This function displays a spinner to console
+spinner() {
+    local chars="/-\|"
+    local spin_i=0
+    printf "\e[?25l"
+    while true; do
+        printf "\r \e[36m%s\e[0m" "${chars:spin_i++%${#chars}:1}"
+        sleep 0.1
+    done
+}

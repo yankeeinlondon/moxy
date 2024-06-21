@@ -1,24 +1,13 @@
 #!/usr/bin/env bash
 
-# shellcheck source="../shared.sh"
-source "./utils/shared.sh"
+# shellcheck source="../env.sh"
+source "./utils/env.sh"
+# shellcheck source="../logging.sh"
+source "./utils/logging.sh"
 
 function default_validator () {
     return 0;
 }
-
-
-
-let DIALOG_OK=0;
-let DIALOG_CANCEL=1;
-let DIALOG_HELP=2;
-let DIALOG_EXTRA=3;
-let DIALOG_HELP=4;
-let DIALOG_TIMEOUT=5;
-# when error occur inside dialog or user presses ESC
-let DIALOG_ERR=-1;
-
-
 
 # exit_ask <msg> <is_error>
 function exit_ask() {

@@ -2,6 +2,9 @@
 
 # ENV variable definitions
 
+
+export MOXY_CONFIG="${HOME}/.moxy"
+
 export LIST_DELIMITER="${LIST_DELIMITER:-|*|}"
 export LIST_PREFIX="list::["
 export LIST_SUFFIX="]"
@@ -39,3 +42,12 @@ export HAS_SSD_STORAGE="${HAS_SSD_STORAGE:-true}"
 export HAS_SSD_STORAGE_DESC="A flag to indicate whether a container uses SSD storage. If the value is true then the drive configuration will turn on SSD emulation and TRIM support."
 export PASSWORD="${PASSWORD:-do-not-use}"
 export PASSWORD_DESC="By default it takes the value of \"do-not-use\" which means that the container will NOT have a password and rely on SSH keys instead. If it's set to any other value then that will be the password set on the container."
+
+export DIALOG_OK=0;
+export DIALOG_CANCEL=1;
+export DIALOG_HELP=2;
+export DIALOG_EXTRA=3;
+export DIALOG_HELP=4;
+export DIALOG_TIMEOUT=5;
+# when error occur inside dialog or user presses ESC
+export DIALOG_ERR=-1;

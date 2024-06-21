@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 
+
+# shellcheck source="./env.sh"
+source "./utils/env.sh"
 # shellcheck source="./logging.sh"
 source "./utils/logging.sh"
+# shellcheck source="./info.sh"
+source "./utils/info.sh"
+# shellcheck source="./errors.sh"
+. "./utils/errors.sh"
+# shellcheck source="./fetch.sh"
+. "./utils/fetch.sh"
 
 # is_pve_node
 #
@@ -25,21 +34,71 @@ function is_pve_node() {
     fi
 }
 
+function set_default_token() {
+    local -r token="${1:?no URL was passed to fetch_get()}"
 
-pve_version_check() {
-    if is_pve_node; then
-        # shellcheck disable=SC2046
-        if [ $(pveversion | grep -c "pve-manager/7\.[0-9]") -eq 0 ]; then
-            echo -e "${CROSS} This version of Proxmox Virtual Environment is not supported"
-            echo -e "Requires PVE Version 7.0 or higher"
-            echo -e "Exiting..."
-            sleep 2
-            exit
-        fi
+    replace_line_in_file "${MOXY_CONFIG}" "DEFAULT_API" "DEFAULT_API=${token}"
+}
+
+
+# get_default_node()
+#
+# Gets the address for the "default host" for PVE.
+function get_default_node() {
+    local -r def_node=$(find_in_file "${MOXY_CONFIG}" "DEFAULT_NODE")
+
+    if not_empty "$def_node"; then
+        echo "${def_node}"
+        return 0
     else
-        # check version with API
-        log "API Version Check not implemented yet"
+        # shellcheck disable=SC2207
+        local -ra all_nodes=($(findall_in_file "${MOXY_CONFIG}" "API_TOKEN"))
+
+        if  [[ $(length "${all_nodes[@]}") -gt 0 ]]; then
+            echo "${all_nodes[0]}"
+            return 0
+        else
+            return 1
+        fi
     fi
+}
+
+# pve_version
+#
+# Provides the PVE version of the current node (if a PVE node)
+# or the DEFAULT_NODE setting in the configuration if a remote
+# node.
+function pve_version() {
+    if is_pve_node; then
+        # shellcheck disable=SC2207
+        local -ra parts=( $(split_on "/"" $(pveversion)") )
+
+        echo "${parts[1]}"
+    else
+        local -r version="$(get_pve_version)"
+
+        echo "${version}"
+    fi
+}
+
+# pve_version_check()
+# 
+# Validates that the PVE version is the minimum required.
+# It uses `pveversion` command when directly no a host 
+# but otherwise relies on the API.
+function pve_version_check() {
+    local -r version="$(pve_version)"
+    # shellcheck disable=SC2207
+    local -ri major=( $(major_version "${version}") )
+
+    if [[ major -lt 7  ]]; then
+        log "You are running version ${version} of Proxmox but the scripts\nin Moxy require at least version 7."
+        log ""
+        log "Please consider upgrading."
+        log ""
+        exit
+    fi
+
 }
 
 

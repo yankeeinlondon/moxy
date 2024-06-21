@@ -107,7 +107,16 @@ function restore_errors() {
 }
 
 
-
-function nbsp() {
-    printf '\xc2\xa0'
+# manage_err () -> "prior error state"
+#
+# Turns off error (aka, set -e) but returns
+# what the single-letter states were prior
+# to doing to so that you can revert back
+# to this state at the appropriate time
+function manage_err() {
+    local -r set_state="$(shell_options)"
+    set +e
+    echo "${set_state}"
+    return 0
 }
+
