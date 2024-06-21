@@ -607,3 +607,28 @@ function retain_after_last() {
         echo ""
     fi
 }
+
+# summarize() <content> <[length]>
+#
+# helps to describe long text by only showing the first
+# <length> characters, an ellipsis, and then the last
+# <length> characters.
+#
+# Note if the overall length of the text is not long
+# enough then no summarization will be done.
+function summarize() {
+    local -r content="${1}"
+    local -r len="${2:-16}"
+
+    if not_empty "$content"; then
+        local -ir min=( ("${len}") * 2 )
+        if [[ ${min} -gt  ${#content}  ]]; then
+            echo "${content}"
+        else
+            printf "%s" "${content:0:${len}} ... ${content:-${len}}"
+        fi
+    else
+        echo ""
+    fi
+
+}

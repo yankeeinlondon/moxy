@@ -124,7 +124,7 @@ function get_pvesh() {
     local -r path=${1:?no path provided to get_pvesh())}
     local -r filter=${2:-}
 
-    local response
+    local request
     request="$(printf "%s" "$(pvesh get "${path}" --output-format=json)")"
 
     if not_empty "${response}" && not_empty "${filter}"; then
@@ -133,6 +133,7 @@ function get_pvesh() {
         local -r response="$(printf "%s" "${request}" | jq --raw-output "${filter}")" || error "Problem using jq with filter '${filter}' on a response [${#request} chars] from the URL ${url}"
         printf "%s" "${response}"
     else 
+        debug "get_pve(${path})" "got a response [${#request} chars], no filter to apply"
         echo "${request}"
     fi
 }
