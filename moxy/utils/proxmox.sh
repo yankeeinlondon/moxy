@@ -206,7 +206,7 @@ function pve_nodes() {
     if is_pve_node; then
         nodes=$(get_pvesh "/nodes" ".data")
     else
-        nodes="$(get_pve "/nodes" ".data.[].")"
+        nodes="$(get_pve "/nodes" ".data")"
     fi
 
     printf "%s" "$(list "${nodes}")"

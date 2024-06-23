@@ -49,9 +49,29 @@ function tui() {
 
 # ask_password <title> <height> <width> 
 function ask_radiolist() {
-    local -r title="${1:?No title provided to ask_yes_no()}"
-    local -r height="${2:?No height provided to ask_yes_no()}"
-    local -r width="${3:?No width provided to ask_yes_no()}"
+    local -r title="${1:?No title provided to ask_radiolist()}"
+    local -r height="${2:?No height provided to ask_radiolist()}"
+    local -r width="${3:?No width provided to ask_radiolist()}"
+    local -r list_height="${3:?No list_height provided to ask_radiolist()}"
+    # local -r ok_btn="${4:-Ok}"
+    # local -r cancel_btn="${5:-Cancel}"
+    local -r exit_msg="${6:-Goodbye}"
+
+    local -r tool="$(tui)"
+
+    if [[ "$tool" == "dialog" ]]; then 
+        choice=$(
+            dialog  --backtitle "${title}" --radiolist "${title}" "${height}" "${width}" "${list_height}"  3>&2 2>&1 1>&3
+        ) || exit_ask "${exit_msg}" "false"
+    elif [[ "$tool" == "whiptail" ]]; then 
+        choice=$(
+            whiptail --ok-btn "${ok_btn}" --cancel-btn "${cancel_btn}" --passwordbox "${title}" "${height}" "${width}"  3>&2 2>&1 1>&3
+        ) || exit_ask "${exit_msg}" "false"
+    else
+        error "can't ask for password as no TUI is available [${tool}]"
+        exit 1
+    fi
+
 
 }
 

@@ -16,6 +16,11 @@
 . "./utils/info.sh"
 # shellcheck source="./proxmox.sh"
 . "./utils/proxmox.sh"
+# shellcheck source="./interactive/ask.sh"
+. "./utils/interactive/ask.sh"
+# shellcheck source="./preferences.sh"
+. "./utils/preferences.sh"
+
 
 
 if ! ui_availability; then
@@ -73,9 +78,8 @@ fi
 
 pve_version_check;
 
-
-if file_contains "${MOXY_CONFIG}" "API_TOKEN"; then
-    KEY=$(find_in_file "${MOXY_CONFIG}" "API_TOKEN") || error "could not find API_TOKEN"
-    
-
+if ! file_contains "${MOXY_CONFIG}" "DEFAULT_DISTRO"; then
+    preferred_distro
 fi
+
+exit

@@ -88,7 +88,8 @@ function is_shell_alias() {
 
 # has_command <cmd>
 #
-# same as is_installed, checks whether <cmd> is installed in OS path.
+# checks whether a particular program passed in via $1 is installed 
+# on the OS or not (at least within the $PATH)
 function has_command() {
     local -r cmd="${1:?cmd is missing}"
 

@@ -2,6 +2,8 @@
 
 # shellcheck source="./logging.sh"
 . "./utils/logging.sh"
+# shellcheck source="./conditionals.sh"
+. "./utils/conditionals.sh"
 
 
 # replace_substring_in_file() <match> <replace> <file>
@@ -619,10 +621,11 @@ function retain_after_last() {
 function summarize() {
     local -r content="${1}"
     local -r len="${2:-16}"
+    local -ir min=( "${len}" * 2 ) # min content len before trucate
+    local -r content_len=(${#content})
 
     if not_empty "$content"; then
-        local -ir min=( ("${len}") * 2 )
-        if [[ ${min} -gt  ${#content}  ]]; then
+        if [[ min -gt  content_len  ]]; then
             echo "${content}"
         else
             printf "%s" "${content:0:${len}} ... ${content:-${len}}"
