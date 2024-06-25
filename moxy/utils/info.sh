@@ -47,20 +47,78 @@ function find_in_file() {
     fi
 }
 
+
+# distro_version() <[vmid]>
+#
+# will try to detect the linux distro's version id and name 
+# of the host computer or the <vmid> if specified.
+function distro_version() {
+    local -r vm_id="$1:-"
+
+    if [[ $(os "$vm_id") == "linux" ]]; then
+        if file_exists "/etc/os-release"; then
+            local -r id="$(find_in_file "VERSION_ID=" "/etc/os-release")"
+            local -r codename="$(find_in_file "VERSION_CODENAME=" "/etc/os-release")"
+            echo "${id}/${codename}"
+            return 0
+        fi
+    else
+        error "Called distro() on a non-linux OS [$(os "$vm_id")]!"
+    fi
+}
+
+# distro() <[vmid]>
+#
+# will try to detect the linux distro of the host computer
+# or the <vmid> if specified.
+function distro() {
+    local -r vm_id="$1:-"
+
+    if [[ $(os "$vm_id") == "linux" ]]; then
+        if file_exists "/etc/os-release"; then
+            local -r name="$(find_in_file "ID=" "/etc/os-release")" || "$(find_in_file "NAME=" "/etc/os-release")"
+            echo "${name}"
+            return 0
+        fi
+    else
+        error "Called distro() on a non-linux OS [$(os "$vm_id")]!"
+    fi
+}
+
 # os() <[vmid]>
 #
 # will try to detect the operating system of the host computer
 # or a container if a <vmid> is passed in as a parameter.
 function os() {
-    local -r vm_id="$1:-";
+    local -r vm_id="$1"
+    local -r os_type=$(lc "${OSTYPE}") || "$(lc "$(uname)")" || "unknown"
 
     if is_empty "${vm_id}"; then
-        # local/host detection
-        return 0
-
-    else
-        # TODO
-        error "have not implemented yet"
+        case "$os_type" in
+            'linux'*)
+                if distro "$vm_id"; then 
+                    echo "linux/$(distro "${vm_id}")/$(distro_version "$vm_id")"
+                else
+                    echo "linux"
+                fi
+                ;;
+            'freebsd'*)
+                echo "freebsd"
+                ;;
+            'windowsnt'*)
+                echo "windows"
+                ;;
+            'darwin'*) 
+                echo "macos/$(strip_before "darwin" "${OSTYPE}")"
+                ;;
+            'sunos'*)
+                echo "solaris"
+                ;;
+            'aix'*) 
+                echo "aix"
+                ;;
+            *) echo "unknown/${os_type}"
+            esac
     fi
 }
 
@@ -473,4 +531,31 @@ function get_files() {
             return 2
         fi
     fi
+}
+
+# using_bash_3
+#
+# tests whether the host OS has bash version 3 installed
+function using_bash_3() {
+    local -r version=$(bash_version)
+
+    if starts_with "3" "${version}"; then
+        debug "using_bash_3" "IS version 3 variant!"
+        return 0
+    else
+        debug "using_bash_3" "is not version 3 variant"
+        return 1
+    fi
+}
+
+# bash_version()
+#
+# returns the version number of bash for the host OS
+function bash_version() {
+    local version
+    version=$(bash --version)
+    version=$(strip_after "(" "$version")
+    version=$(strip_before "version " "$version")
+
+    echo "$version"
 }

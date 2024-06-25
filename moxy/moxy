@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 
-export BACK_TITLE="Moxy"
 
-# preparatory to make sure we're ready to start
-# user has required programs and ENV is setup
-# correctly
-. "./utils/ready.sh"
 # load in support functions
 . "./utils/shared.sh"
+
+test_if_ready_to_start
+
 
 # moxy
 #
 # main line program which 
 function moxy() {
     local -r cmd=${1:-help}
+    local -ra rest=("${@:2}")
 
     # strict error handling by default
     catch_errors
 
     case $cmd in 
-        help) moxy_help
+        help) moxy_help;;
+        status) moxy_status "${rest[@]}"
 
     esac
 

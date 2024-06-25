@@ -5,6 +5,9 @@
 
 export MOXY_CONFIG="${HOME}/.moxy"
 
+export CANCELLED="CANCELLED"
+
+
 export LIST_DELIMITER="${LIST_DELIMITER:-|*|}"
 export LIST_PREFIX="list::["
 export LIST_SUFFIX="]"

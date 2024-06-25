@@ -3,15 +3,48 @@
 . "./utils/shared.sh"
 
 
-log "Nodes: $(list "$(findall_in_file "${HOME}/.moxy" "NODE=")" )"
-log "Auth: $(pve_auth_header)"
-log "Def node: $(get_default_node)"
-log "Version: $(pve_version)"
-log "Major: $(major_version "$(pve_version)")"
 log "Next ID: $(next_container_id "")"
+log "OS: $(os)"
 
-log "Nodes: $(pve_nodes)"
-log ""
-log "Node Config: $(pve_node_config)"
-log ""
-log "VMs: $(pve_vm_containers)"
+# function ok() {
+#     local -ra resp=("$@")
+
+#     echo "all is ok from ${resp[*]}"
+
+# }
+
+# function oops() {
+#     local -i code=$1
+#     local -r stdout="$2"
+
+#     echo "shit got bad (${code})"
+#     printf "%s" "${stdout}"
+# }
+
+# function hi() {
+#     echo "hi"
+# }
+
+
+# try hi ok oops "foo bar"
+
+
+declare -rA _username=(
+    [title]="What should the sudo users' default username be?\n\nRemember that this is just a default username which you'll start with each time you create a new container."
+    [backmsg]="Moxy Preferences"
+    [width]=60
+    [height]=23
+    [ok]="Set Default Username"
+    [cancel]="Exit"
+    [on_cancel]="exit"
+    [exit_msg]="See ya"
+)
+
+username=$(ask_inputbox _username)
+
+if was_cancelled "$username"; then
+    log "was cancelled"
+else
+
+    log "username: ${username}"
+fi

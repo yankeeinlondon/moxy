@@ -52,6 +52,26 @@ function replace_line_in_file() {
     fi
 }
 
+# replace_line_in_file_or_append() <filepath> <find> <new-line>
+#
+# loads a file <filepath> and searches for a line which has <find>; 
+# if found it will replace that line with <new-line> but if not
+# found it will append this to the end of the file.
+function replace_line_in_file_or_append() {
+    local -r filepath="${1:?no filepath was passed to replace_line_in_file()}"
+    local -r find="${2:?no find string passed to replace_line_in_file()}"
+    local -r new_line="${3:?no new_line string passed to replace_line_in_file()}"
+
+    local file_changed="false"
+    local -a new_content=()
+
+    if file_exists "$filepath"; then
+        if ! replace_line_in_file "${filepath}" "${find}" "${new_line}"; then
+            printf "%s\n" "${new_line}" >> "${filepath}"
+        fi
+    fi
+}
+
 # major_version() <semver>
 #
 # given a semver version number, this extracts the major version number
@@ -70,6 +90,26 @@ function nbsp() {
     printf '\xc2\xa0'
 }
 
+function space_to_nbsp() {
+    local -r input="${1}"
+
+    if not_empty "$input"; then
+        printf "%s" "${input// /$(nbsp)}"
+    else
+        echo ""
+    fi
+}
+
+function nbsp_to_space() {
+    local -r input="${1}"
+
+    if not_empty "$input"; then
+        printf "%s" "${input//$(nbsp)/ }"
+    else
+        echo ""
+    fi
+}
+
 # split_on <delimiter> <content> → array
 #
 # splits string content on a given delimiter and returns
@@ -77,6 +117,7 @@ function nbsp() {
 function split_on() {
     local -r delimiter="${1:-not-specified}"
     local content="${2:-no-content}"
+    local retain="${3:-false}"
     local -a parts=()
 
     if [ "$delimiter" == "not-specified" ] && [ "$content" == "no-content" ]; then
@@ -94,9 +135,14 @@ function split_on() {
 
     content="${content}${delimiter}"
     while [[ "$content" ]]; do
-        parts+=( "${content%%"$delimiter"*}" )
+        if [[ "$retain" == "true" ]]; then
+            parts+=( "${content%%"$delimiter"*}${delimiter}" )
+        else
+            parts+=( "${content%%"$delimiter"*}" )
+        fi
         content=${content#*"$delimiter"}
     done
+
 
     debug "split_on" "split into ${YELLOW}${BOLD}${#parts[@]}${RESET} parts: ${DIM}${parts[*]}${RESET}"
 
@@ -241,6 +287,18 @@ function object() {
     echo "${object_defn}"
 
     return 0
+}
+
+function json_to_assoc_array() {
+    local -r json="${1:?No JSON string was passed to json_to_assoc_array}"
+    local -nA data=$2
+
+
+    while IFS= read -r -d '' key && IFS= read -r -d '' value; do
+        # shellcheck disable=SC2034
+        data[$key]=$value
+    done < <(jq -j 'to_entries[] | (.key, "\u0000", .value, "\u0000")' <<<"$json")
+
 }
 
 
@@ -566,7 +624,7 @@ function strip_after() {
 #
 # Ex: strip_after_last ":" "hello:world:of:tomorrow" → "hello:world:of"
 function strip_after_last() {
-    local -r find="${1:?strip_after() requires that a find parameter be passed!}"
+    local -r find="${1:?strip_after_last() requires that a find parameter be passed!}"
     local -r content="${2:-}"
 
     if not_empty "content"; then
@@ -576,38 +634,31 @@ function strip_after_last() {
     fi
 }
 
-# retain_after <find> <content>
+# strip_before <find> <content>
 #
 # Retains all the characters after the first instance of <find> is
 # found.
 #
 # Ex: strip_after ":" "hello:world:of:tomorrow" → "world:of:tomorrow"
-function retain_after() {
-    local -r find="${1:?strip_after() requires that a find parameter be passed!}"
+function strip_before() {
+    local -r find="${1:?strip_before() requires that a find parameter be passed!}"
     local -r content="${2:-}"
 
-    if not_empty "content"; then
-        echo "${content#"${find}"*}"
-    else 
-        echo ""
-    fi
+    echo "${content#*"${find}"}"
 }
 
-# retain_after_last <find> <content>
+# strip_before_last <find> <content>
 #
 # Retains all the characters after the last instance of <find> is
 # found.
 #
 # Ex: strip_after ":" "hello:world:of:tomorrow" → "tomorrow"
-function retain_after_last() {
-    local -r find="${1:?strip_after() requires that a find parameter be passed!}"
+function strip_before_last() {
+    local -r find="${1:?strip_before_last() requires that a find parameter be passed!}"
     local -r content="${2:-}"
 
-    if not_empty "content"; then
-        echo "${content##"${find}"*}"
-    else 
-        echo ""
-    fi
+    echo "${content##*"${find}"}"
+    
 }
 
 # summarize() <content> <[length]>
@@ -634,4 +685,58 @@ function summarize() {
         echo ""
     fi
 
+}
+
+
+# yes_no <num>
+# 
+# Converts a numeric response into yes/no/maybe where:
+#  - 0 → "yes"
+#  - 1 → "no"
+#  - [num] → "maybe(${num})"
+function yes_no() {
+    local -ri evaluate="${1:?yes_no() expects a numeric value to be passed in}"
+    if [[ $evaluate -eq 0 ]]; then
+        debug "yes_no" "value of '${evaluate}' is converted to 'yes'"
+        echo "yes"
+    elif [[ $evaluate -eq 1 ]]; then
+        debug "yes_no" "value of '${evaluate}' is converted to 'no'"
+        echo "no"
+    else
+        debug "yes_no" "value of '${evaluate}' is converted to 'maybe(${evaluate})'"
+        echo "maybe(${evaluate})"
+    fi
+
+}
+
+
+# true_false <num>
+# 
+# Converts a numeric response into yes/no/maybe where:
+#  - 0 → "true"
+#  - 1 → "false"
+#  - [num] → "boolean(${num})"
+function true_false() {
+    local -ri evaluate="${1:?yes_no() expects a numeric value to be passed in}"
+    if [[ $evaluate -eq 0 ]]; then
+        debug "true_false" "value of '${evaluate}' is converted to 'true'"
+        echo "true"
+    elif [[ $evaluate -eq 1 ]]; then
+        debug "true_false" "value of '${evaluate}' is converted to 'false'"
+        echo "false"
+    else
+        debug "true_false" "value of '${evaluate}' is converted to 'boolean(${evaluate})'"
+        echo "boolean(${evaluate})"
+    fi
+}
+
+
+# each <array>
+#
+#
+function each() {
+    local -rA obj=$@
+    for key in "${!@}"; do
+        echo "Key ${key}, Value: ${@[key]}"
+    done
 }

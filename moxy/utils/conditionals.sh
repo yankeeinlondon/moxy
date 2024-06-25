@@ -52,15 +52,26 @@ function is_keyword() {
 # tests whether the <test> value passed in is an empty string (or is unset)
 # and returns 0 when it is NOT empty and 1 when it is.
 function not_empty() {
-    if [ -z "$1" ]; then
+    if [ -z "$1" ] || [[ "$1" == "" ]]; then
+        debug "not_empty(${1})" "WAS empty, returning 1/false"
         return 1
     else
-        local -r arg="${1}"
-        if [[ "${#arg}" == "0"  ]]; then
-            return 1
-        else
-            return 0
-        fi
+        debug "not_empty(${1}))" "was not empty, returning 0/true"
+        return 0
+    fi
+}
+
+# is_empty() <test>
+# 
+# tests whether the <test> value passed in is an empty string (or is unset)
+# and returns 0 when it is empty and 1 when it is NOT.
+function is_empty() {
+    if [ -z "$1" ]; then
+        debug "is_empty(${1})" "was empty, returning 0/true"
+        return 0
+    else
+        debug "is_empty(${1}))" "was NOT empty, returning 1/false"
+        return 1
     fi
 }
 
@@ -152,8 +163,8 @@ function is_shell_command() {
 function is_object() {
     local -r candidate="${1:-}"
 
-    if starts_with "${OBJECT_PREFIX}" "${candidate}"; then
-        if ends_with "${OBJECT_SUFFIX}" "${candidate}"; then
+    if starts_with  "${candidate}" "${OBJECT_PREFIX}"; then
+        if ends_with "${candidate}""${OBJECT_SUFFIX}"; then
             debug "is_object" "true"
             return 0
         fi
@@ -341,3 +352,71 @@ function is_kv_pair() {
     debug "is_kv_pair" "false (\"${DIM}${test}${RESET}\")"
     return 1
 }
+
+function bash_type() {
+    local -r variable="$1"
+
+    if is_function "$variable"; then
+        echo "function"
+    elif is_numeric "$variable"; then
+        echo "number"
+    elif is_list "$variable"; then
+        echo "list"
+    elif is_object "$variable"; then
+        echo "object"
+    else 
+        echo "string"
+    fi
+}
+
+
+# try <ref:fn> <ref:ok> <arr:params> <ref:err>
+#
+# Pass in a reference to a function and the parameters you'd like
+# to call it with. 
+function try() {
+    local -r fn_name="$1"
+    local -r fn=$($1)
+    local -r success=$($2)
+    local -r failure=$($3)
+    local -ra params=("${@:4}")
+
+    local stdout
+    local stderr
+    local -i code
+
+    allow_errors
+
+    {
+        IFS= read -r -d '' stderr;
+        IFS= read -r -d '' code;
+        IFS= read -r -d '' stdout;
+    } < <((printf '\0%s\n\0' "$($fn "${params[@]}"; printf '\0%d' "${?}" 1>&2)" 1>&2) 2>&1)
+
+    local -rA output=(
+        [stdout]="$stdout"
+        [stderr]="$stderr"
+        [code]=$code
+        [fn_name]="$fn_name"
+        [success_fn]="$2"
+        [failure_fn]="$3"
+        [params]="${params[*]}"
+    )
+
+
+    for key in "${!output[@]}"; do
+        echo "Key: $key, Value: ${output[$key]}"
+    done
+
+    if [ $code -eq 0 ]; then 
+        log "${fn_name}(${params[*]}) -> ${output["stdout"]} -> ${output["success_fn"]}()"
+        debug "try" "Successful execution of function '${fn_name}' resulting in $(object "${!output[@]}")"
+        printf "%s" "$success ${output[*]}"
+    else
+        debug "try" "Failed execution of function '${fn_name}' resulting in $(object "${!output[@]}")"
+        printf "%s" "$failure ${output[*]}"
+    fi
+
+    catch_errors
+}
+

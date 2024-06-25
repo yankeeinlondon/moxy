@@ -14,6 +14,8 @@
 # shellcheck source="./help.sh"
 . "./utils/help.sh"
 
+# shellcheck source="./ready.sh"
+. "./utils/ready.sh"
 # shellcheck source="./conditionals.sh"
 . "./utils/conditionals.sh"
 # shellcheck source="./mutate.sh"
@@ -30,6 +32,8 @@
 
 # shellcheck source="./fetch.sh"
 . "./utils/fetch.sh"
+# shellcheck source="./status.sh"
+. "./utils/status.sh"
 
 
 

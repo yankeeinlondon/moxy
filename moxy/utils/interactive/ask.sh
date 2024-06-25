@@ -2,6 +2,8 @@
 
 # shellcheck source="../env.sh"
 source "./utils/env.sh"
+# shellcheck source="../mutate.sh"
+source "./utils/mutate.sh"
 # shellcheck source="../logging.sh"
 source "./utils/logging.sh"
 
@@ -17,7 +19,45 @@ function exit_ask() {
     log ""
     echo "${msg}"
     
-    exit
+    exit 0
+}
+
+function text_confirm() {
+    local -r question="${1:?text_confirm() did not get the question passed to it}"
+    local -r default="${2:-y}"
+    local response
+
+    if [[ $(lc "${default}") == "y" ]]; then
+        read -rp "${question} (Y/n)" response >/dev/null
+    else
+        read -rp "${question} (y/N)" response >/dev/null
+    fi
+
+    if [[ $(lc "$default") == "y" ]];then
+        # local outcome=
+        local -i resp
+        if [[ $(lc "$response") == "n" ]] || [[ $(lc "$response") == "no" ]]; then
+            resp=1
+        else
+            resp=0
+        fi        
+
+        debug "text_confirm" "question '${question}'='${response}', with ${ITALIC}default${RESET} of 'yes' -> '$(yes_no "$resp")'"
+
+        return $resp
+
+    else
+        local -i resp
+        if [[ $(lc "$response" == "y") ]] || [[ $(lc "$response") == "yes" ]]; then
+            resp=0
+        else
+            resp=1
+        fi
+
+        debug "text_confirm" "question '${question}'='${response}', with ${ITALIC}default${RESET} of 'no' -> '$(yes_no "$resp")'"
+
+        return $resp
+    fi
 }
 
 # ask
@@ -47,32 +87,72 @@ function tui() {
     echo "${var}"
 }
 
-# ask_password <title> <height> <width> 
+# ask_password <obj[ title, backmsg, height, width, list   ]  >
+#
+# 
 function ask_radiolist() {
-    local -r title="${1:?No title provided to ask_radiolist()}"
-    local -r height="${2:?No height provided to ask_radiolist()}"
-    local -r width="${3:?No width provided to ask_radiolist()}"
-    local -r list_height="${3:?No list_height provided to ask_radiolist()}"
-    # local -r ok_btn="${4:-Ok}"
-    # local -r cancel_btn="${5:-Cancel}"
-    local -r exit_msg="${6:-Goodbye}"
+    local -n data=$1
+    local -r title="${data["title"]}"
+    local -r backmsg="${data["backmsg"]}"
+    local -r height="${data["height"]}"
+    local -r width="${data["width"]}" 
+    local -r radio_height="${data["radio_height"]}"
+    local -ra choices="${data["choices"]}"
+    local -r exit_msg="${data["exit_msg"]}"
+    local -ra params=(
+        "--backtitle \"${backmsg}\""
+        "--radiolist \"${title}\" ${height} ${width} ${radio_height}"
+        "${choices[*]} 3>&2 2>&1 1>&3"
+    )
 
     local -r tool="$(tui)"
 
     if [[ "$tool" == "dialog" ]]; then 
-        choice=$(
-            dialog  --backtitle "${title}" --radiolist "${title}" "${height}" "${width}" "${list_height}"  3>&2 2>&1 1>&3
-        ) || exit_ask "${exit_msg}" "false"
-    elif [[ "$tool" == "whiptail" ]]; then 
-        choice=$(
-            whiptail --ok-btn "${ok_btn}" --cancel-btn "${cancel_btn}" --passwordbox "${title}" "${height}" "${width}"  3>&2 2>&1 1>&3
-        ) || exit_ask "${exit_msg}" "false"
+        cmd="dialog ${params[*]}"
+    elif [[ "$tool" == "whiptail" ]]; then
+        cmd="whiptail ${params[*]}" 
     else
         error "can't ask for password as no TUI is available [${tool}]"
         exit 1
     fi
+    debug "ask_radiolist" "asking for radiolist with: ${cmd}"
+    local -r choice=$(eval "$cmd" || exit_ask "$exit_msg")
 
+    echo "${choice}"
+}
 
+# ask_yes_no() <[ title, backmsg, height, width, yes, no ]>
+#
+# creates a dialog box with a yes/no dialog
+function ask_yes_no() {
+    local -nA data=$1
+    local -r title="${data["title"]}"
+    local -r backmsg="${data["backmsg"]}"
+    local -r height="${data["height"]}"
+    local -r width="${data["width"]}" 
+    local -r yes="${data["yes"]}"
+    local -r no="${data["no"]}"
+    local -r exit_msg="${data["exit_msg"]}"
+    local -ra params=(
+        "--backtitle \"${backmsg}\""
+        "--yesno \"${title}\" ${height} ${width}"
+        "3>&2 2>&1 1>&3"
+    )
+
+    local -r tool="$(tui)"
+
+    if [[ "$tool" == "dialog" ]]; then 
+        cmd="dialog ${params[*]}"
+    elif [[ "$tool" == "whiptail" ]]; then
+        cmd="whiptail ${params[*]}" 
+    else
+        error "can't ask for password as no TUI is available [${tool}]"
+        exit 1
+    fi
+    debug "ask_yes_no" "asking confirmation on: ${title}"
+    eval "$cmd"
+
+    return $?
 }
 
 # ask_password <title> <height> <width> <ok> <cancel> <exit>
@@ -110,27 +190,64 @@ function ask_password() {
     fi
 }
 
-# ask_inputbox <title> <height> <width> <ok> <cancel> <exit>
+function was_cancelled() {
+    local -r outcome="$1"
+
+    if not_empty "$outcome" && [[ "$outcome" == "${CANCELLED}" ]]; then
+        return 0
+    else 
+        return 1
+    fi
+}
+
+# ask_inputbox {title|height|width|ok|cancel|exit}
 function ask_inputbox() {
-    local -r title="${1:?No title provided to ask_yes_no()}"
-    local -r height="${2:?No height provided to ask_yes_no()}"
-    local -r width="${3:?No width provided to ask_yes_no()}"
-    local -r ok_btn="${4:-Ok}"
-    local -r cancel_btn="${5:-Cancel}"
-    local -r exit_msg="${6:-Goodbye}"
+    local -n data=$1
+    local -r title="${data["title"]}"
+    local -r backmsg="${data["backmsg"]}"
+    local -r height="${data["height"]}"
+    local -r width="${data["width"]}" 
+    local -r ok="${data["ok"]}"
+    local -r cancel="${data["cancel"]}"
+    local -r on_cancel="${data["on_cancel"]}"
+    local -r exit_msg="${data["exit_msg"]}"
+    
     local -r tool="$(tui)"
-    local choice
+
+    local buttons
+    if [[ "${tool}" == "dialog" ]]; then
+        buttons="--ok-label \"${ok}\" --cancel-label \"${cancel}\""
+    else
+        buttons="--ok-btn \"${ok}\" --cancel-btn \"${cancel}\""
+    fi
+    local -ra params=(
+        "--backtitle \"${backmsg}\""
+        "${buttons}"
+        "--inputbox \"${title}\" ${height} ${width}"
+        "3>&2 2>&1 1>&3"
+    )
+
 
     if [[ "$tool" == "dialog" ]]; then 
-        dialog --ok-label "${ok_btn}" --cancel-label "${cancel_btn}" --inputbox "${title}" "${height}" "${width}"  3>&2 2>&1 1>&3 || exit_ask "${exit_msg}"
-    fi
-    if [[ "$tool" == "whiptail" ]]; then 
-        choice=$(
-            whiptail --ok-btn "${ok_btn}" --cancel-btn "${cancel_btn}" --inputbox "${title}" "${height}" "${width}"  3>&2 2>&1 1>&3
-        ) || exit_ask "${exit_msg}"
+        cmd=$(eval "dialog ${params[*]} || echo ${CANCELLED}")
+    elif [[ "$tool" == "whiptail" ]]; then
+        cmd=$(whiptail "${params[*]}") || "${CANCELLED}"
+    else
+        error "can't ask for password as no TUI is available [${tool}]"
+        exit 1
     fi
 
-    echo "${choice}"
+    if was_cancelled "${cmd}"; then
+        if [[ "$on_cancel" == "exit" ]]; then
+            clear
+            exit_ask "${exit_msg}"
+        else
+            echo "${CANCELLED}"
+            return 0
+        fi
+    fi
+    
+    printf "%s" "$cmd"
 }
 
 
@@ -238,14 +355,6 @@ function ask_from_menu() {
     local -r width="${4:60}"
     local -r def_value="${5:-}"
     local -r validate="${6:-$default_validator}"
-}
-
-function ask_yes_no() {
-    local -rA answers="${1:the dictionary of answers was not provided to ask_yes_no}"
-    local -r question="${2:the question text was not provided to ask_yes_no}"
-    local value="${3:-yes}"
-
-    echo "TODO"
 }
 
 function ask_select_one() {

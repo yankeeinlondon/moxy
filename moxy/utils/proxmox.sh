@@ -66,7 +66,7 @@ function pve_version() {
     if is_pve_node; then
         local version
         version="$(pveversion)"
-        version="$(retain_after "pve-manager/" "${version}")"
+        version="$(strip_before "pve-manager/" "${version}")"
         version="$(strip_after_last "/"  "${version}")"
 
         echo "${version}"
@@ -151,7 +151,7 @@ function pve_resources() {
 
 function pve_lxc_containers() {
     local -r path="/cluster/resources"
-    local -r filter=".data.[] | select(.type == \"lxc\")"
+    local -r filter=".data | map(select(.type == \"lxc\"))"
     local resources
     if is_pve_node; then
         resources="$(get_pvesh "${path}" "${filter}")"
@@ -159,7 +159,7 @@ function pve_lxc_containers() {
         resources="$(get_pve "${path}" "${filter}")"
     fi
 
-    printf "%s" "$(list "${resources}")"
+    printf "%s" "${resources}"
 }
 
 function pve_vm_containers() {
@@ -190,7 +190,7 @@ function pve_storage() {
 
 function pve_sdn() {
     local -r path="/cluster/resources"
-    local -r filter=".data.[] | select(.type == \"sdn\")"
+    local -r filter=".data | map(select(.type == \"sdn\"))"
     local resources
     if is_pve_node; then
         resources="$(get_pvesh "${path}" "${filter}")"
