@@ -53,10 +53,10 @@ function is_keyword() {
 # and returns 0 when it is NOT empty and 1 when it is.
 function not_empty() {
     if [ -z "$1" ] || [[ "$1" == "" ]]; then
-        debug "not_empty(${1})" "WAS empty, returning 1/false"
+        debug "not_empty" "WAS empty, returning 1/false"
         return 1
     else
-        debug "not_empty(${1}))" "was not empty, returning 0/true"
+        debug "not_empty" "was not empty [${#1} chars], returning 0/true"
         return 0
     fi
 }
@@ -66,7 +66,7 @@ function not_empty() {
 # tests whether the <test> value passed in is an empty string (or is unset)
 # and returns 0 when it is empty and 1 when it is NOT.
 function is_empty() {
-    if [ -z "$1" ]; then
+    if [ -z "$1" ] || [[ "$1" == "" ]]; then
         debug "is_empty(${1})" "was empty, returning 0/true"
         return 0
     else

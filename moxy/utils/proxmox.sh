@@ -124,17 +124,44 @@ function get_pvesh() {
     local -r path=${1:?no path provided to get_pvesh())}
     local -r filter=${2:-}
 
-    local request
-    request="$(printf "%s" "$(pvesh get "${path}" --output-format=json)")"
+    local -r request="pvesh get ${path} --output-format=json"
+
+    local response
+    debug "get_pvesh(${path})" "got a response, now filtering with: ${filter}"
+    # unfiltered response
+    response="$(eval "$request")"
+    debug "get_pvesh" "got a response from CLI of ${#response} characters"
+    # shellcheck disable=SC2181
+    if [[ $? -ne 0 ]] || is_empty "$1"; then
+        error "CLI call to ${BOLD}${request}${RESET} failed to return successfully (or returned nothing)"
+    fi
+    # jq filtering applied
+    local filtered
+    if not_empty "$filter"; then
+        filtered="$(printf "%s" "${response}" | jq --raw-output "${filter}")" || error "Problem using jq with filter '${filter}' on the request ${BOLD}${request}${RESET} which produced a response of ${#response} chars:\n\nRESPONSE:\n${response}\n---- END RESPONSE ----\n"
+    else
+        filtered="${response}"
+    fi
+
+    printf "%s" "${filtered}"
+}
+
+function get_pve() {
+    local -r path=${1:?no path passed to get_pve()}
+    local -r filter=${2:-}
+    local -r host=${3:-"$(get_default_node)"}
+    local -r url="$(get_pve_url "${host}" "${path}")"
+
+    local response
+    response="$(fetch_get "${url}" "$(pve_auth_header)")"
 
     if not_empty "${response}" && not_empty "${filter}"; then
-        debug "get_pve(${path})" "got a response, now filtering with: ${filter}"
-
-        local -r response="$(printf "%s" "${request}" | jq --raw-output "${filter}")" || error "Problem using jq with filter '${filter}' on a response [${#request} chars] from the URL ${url}"
+        debug "get_pve(${path})" "got a response, now filtering with: ${filter}" 
+        
+        response="$(printf "%s" "${response}" | jq --raw-output "${filter}")" || error "Problem using jq with filter '${filter}' on a response [${#response} chars] from the URL ${url}"
         printf "%s" "${response}"
     else 
-        debug "get_pve(${path})" "got a response [${#request} chars], no filter to apply"
-        echo "${request}"
+        echo "${response}"
     fi
 }
 
@@ -151,12 +178,11 @@ function pve_resources() {
 
 function pve_lxc_containers() {
     local -r path="/cluster/resources"
-    local -r filter=".data | map(select(.type == \"lxc\"))"
     local resources
     if is_pve_node; then
-        resources="$(get_pvesh "${path}" "${filter}")"
+        resources="$(get_pvesh "${path}" '. | map(select(.type == "lxc"))')"
     else 
-        resources="$(get_pve "${path}" "${filter}")"
+        resources="$(get_pve "${path}" '.data | map(select(.type == "lxc"))')"
     fi
 
     printf "%s" "${resources}"

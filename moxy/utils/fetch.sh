@@ -127,24 +127,7 @@ function get_pve_nodes() {
     echo "${outcome}"
 }
 
-function get_pve() {
-    local -r path=${1:?no path passed to get_pve()}
-    local -r filter=${2:-}
-    local -r host=${3:-"$(get_default_node)"}
-    local -r url="$(get_pve_url "${host}" "${path}")"
 
-    local response
-    response="$(fetch_get "${url}" "$(pve_auth_header)")"
-
-    if not_empty "${response}" && not_empty "${filter}"; then
-        debug "get_pve(${path})" "got a response, now filtering with: ${filter}" 
-        
-        response="$(printf "%s" "${response}" | jq --raw-output "${filter}")" || error "Problem using jq with filter '${filter}' on a response [${#response} chars] from the URL ${url}"
-        printf "%s" "${response}"
-    else 
-        echo "${response}"
-    fi
-}
 
 function get_next_container_id() {
     local host
