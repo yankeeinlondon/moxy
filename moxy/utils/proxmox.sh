@@ -31,7 +31,7 @@ function is_pve_node() {
 function set_default_token() {
     local -r token="${1:?no URL was passed to fetch_get()}"
 
-    replace_line_in_file "${MOXY_CONFIG}" "DEFAULT_API" "DEFAULT_API=${token}"
+    replace_line_in_file "${MOXY_CONFIG_FILE}" "DEFAULT_API" "DEFAULT_API=${token}"
 }
 
 
@@ -39,14 +39,14 @@ function set_default_token() {
 #
 # Gets the address for the "default host" for PVE.
 function get_default_node() {
-    local -r def_node=$(find_in_file "${MOXY_CONFIG}" "DEFAULT_NODE")
+    local -r def_node=$(find_in_file "${MOXY_CONFIG_FILE}" "DEFAULT_NODE")
 
     if not_empty "$def_node"; then
         echo "${def_node}"
         return 0
     else
         # shellcheck disable=SC2207
-        local -ra all_nodes=($(findall_in_file "${MOXY_CONFIG}" "API_TOKEN"))
+        local -ra all_nodes=($(findall_in_file "${MOXY_CONFIG_FILE}" "API_TOKEN"))
 
         if  [[ $(length "${all_nodes[@]}") -gt 0 ]]; then
             echo "${all_nodes[0]}"

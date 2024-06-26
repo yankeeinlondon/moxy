@@ -205,6 +205,29 @@ function ui_availability() {
     fi
 }
 
+function typeof() {
+    local -n _var_type=$1
+
+    if is_array _var_type; then
+        echo "array"
+    elif is_assoc_array _var_type; then
+        echo "assoc-array"
+    elif is_numeric _var_type; then
+        echo "number"
+    elif is_list _var_type; then
+        echo "list"
+    elif is_kv_pair _var_type; then
+        echo "kv"
+    elif is_object _var_type; then
+        echo "object"
+    elif is_empty "${_var_type}"; then
+        echo "empty"
+    else
+        echo "string"
+    fi
+
+}
+
 # get <index> <container>
 #
 # Gets the value of a a <container> by <index>
@@ -438,10 +461,10 @@ function get_file() {
 }
 
 
-# get_moxy_config()
+# get_MOXY_CONFIG_FILE()
 #
 # gets the `.moxy` configuration file
-function get_moxy_config() {
+function get_MOXY_CONFIG_FILE() {
     if file_exists "${PWD}/.moxy"; then
         get_file "${PWD}/.moxy"
     elif file_exists "${HOME}/.moxy"; then

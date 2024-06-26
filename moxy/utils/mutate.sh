@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 
+# shellcheck source="./env.sh"
+. "./utils/env.sh"
 # shellcheck source="./logging.sh"
 . "./utils/logging.sh"
+# shellcheck source="./errors.sh"
+. "./utils/errors.sh"
 # shellcheck source="./conditionals.sh"
 . "./utils/conditionals.sh"
 
@@ -265,6 +269,7 @@ function list() {
 }
 
 function object() {
+    local -n assoc_candidate=$1 2>/dev/null
     local -a initial=()
     if has_parameters "$@"; then
         initial=("${@}")
@@ -272,13 +277,28 @@ function object() {
 
     local object_defn=""
 
-    for i in "${initial[@]}"; do
-        if is_kv_pair "${i}"; then
-            object_defn="${object_defn}${OBJECT_DELIMITER}${i}"
-        else
-            warn "invalid KeyValue passed to object(): ${DIM}${i}${RESET}"
-        fi
-    done
+    if is_assoc_array assoc_candidate; then
+        for key in "${!assoc_candidate[@]}"; do
+            local kv_pair
+            kv_pair=$(kv "${key}" "${assoc_candidate[${key}]}")
+            object_defn="${object_defn}${OBJECT_DELIMITER}${kv_pair}"
+        done
+    else 
+        for i in "${initial[@]}"; do
+            if is_kv_pair "${i}"; then
+                object_defn="${object_defn}${OBJECT_DELIMITER}${i}"
+
+            elif contains "${i}" "="; then
+                local key_value
+                key_value=$(kv "$(strip_after "=" "${i}")" "$(strip_before "=" "${i}")")
+                object_defn="${object_defn}${OBJECT_DELIMITER}${key_value}"
+            else
+                if ! is_assoc_array "${i}"; then
+                    warn "invalid inializer value passed to object(): ${DIM}${i}${RESET}"
+                fi
+            fi
+        done
+    fi
 
     object_defn=$(strip_leading "$OBJECT_DELIMITER" "$object_defn")
     object_defn="${OBJECT_PREFIX}${object_defn}${OBJECT_SUFFIX}"
@@ -298,7 +318,6 @@ function json_to_assoc_array() {
         # shellcheck disable=SC2034
         data[$key]=$value
     done < <(jq -j 'to_entries[] | (.key, "\u0000", .value, "\u0000")' <<<"$json")
-
 }
 
 
@@ -340,7 +359,7 @@ function kv() {
     
     local kv_defn="${KV_PREFIX}${key}${KV_DELIMITER}${val}${KV_SUFFIX}"
 
-    debug "kv" "${key}:${val} → ${DIM}${kv_defn}${RESET}"
+    debug "kv" "${kv_defn}"
     echo "${kv_defn}"
     
     return 0
@@ -731,12 +750,57 @@ function true_false() {
 }
 
 
-# each <array>
+
+# pop() <ref:array> <ref:value-or-key> [<ref:value-of-obj>]
 #
+# Takes a reference to an array value and
+# pops off the last element and mutating the
+# <ref:array> to the reduced array while
+# setting <ref:popped-value> to be the 
+# value which was just popped off the array
 #
-function each() {
-    local -rA obj=$@
-    for key in "${!@}"; do
-        echo "Key ${key}, Value: ${@[key]}"
-    done
+# If you pass in an associative array it will 
+# pop off both a "key" and a "value"
+function pop() {
+    local -n __array__=$1
+    local -n __value_or_key__=$2
+    local -n __value_of_obj__=$3 2>/dev/null
+
+    if is_array __array__; then
+        # REGULAR ARRAY
+        if [[ ${#__array__} -eq 0 ]]; then
+            debug "pop" "pop() called on an empty array"
+            __value_or_key__=""
+            return 1
+        fi
+
+        # return the last element in the array
+        __value_or_key__="${__array__[-1]}"
+        
+        # remove the last element from the array
+        unset "__array__[-1]"
+        __array__=("${__array__[@]}")
+    elif is_assoc_array __array__; then
+        # ASSOCIATIVE ARRAY
+        local -r keys=( "${!__array__[@]}")
+
+        if [[ ${#keys} -eq 0 ]]; then
+            debug "pop" "pop() called on an empty associative array"
+            __value_or_key__=""
+            __value_of_obj3ect__=""
+            return 1
+        fi
+
+        local -r last_key="${keys[-1]}"
+
+        __value_or_key__="${last_key}"
+        __value_of_obj__="${__array__["$last_key"]}"
+
+        unset "__array__[${last_key}]"
+        # __array__=( "${__array__[@]}" )
+    else 
+        error "Unexpected type passed into pop()"
+    fi
+
+    
 }

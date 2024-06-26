@@ -4,20 +4,46 @@
 . "./utils/logging.sh"
 
 
-# is_array <any>
-# 
-# boolean test to see if first parameter is an array
+# is_array() <ref:var>
+#
+# tests whether the passed in variable reference is
+# a base array.
+#
+# Note: this only works on later versions of bash which
+# definitely means not v3 but also may exclude parts of v4
+#
+# Note: this check only works after the variable passed in
+# is actually set and set -u is in effect
 function is_array() {
-    local var=$1
+    local -n __var__=$1 
 
-    # use a variable to avoid having to escape spaces
-    local regex="^declare -[aA] ${var}(=|$)"
-    if [[ $(declare -p "$var" 2> /dev/null) =~ $regex ]]; then
-        debug "is_array(${var})" "is an array"
-        return 0
-    else 
-        debug "is_array(${var})" "is NOT an array"
-        return 1
+    if [[ ${__var__@a} = a ]]; then
+        debug "is_array" "is an array!"
+        return 0; # true
+    else
+        debug "is_array" "'${__var__@a}' is not an array!"
+        return 1; # false
+    fi 2>/dev/null
+}
+
+
+# is_assoc_array() <ref:var>
+#
+# tests whether the passed in variable reference is
+# an associative array.
+#
+# Note: this only works on later versions of bash which
+# definitely means not v3 but also may exclude parts of v4
+#
+# Note: this check only works after the variable passed in
+# is actually set and set -u is in effect
+function is_assoc_array() {
+    local -n __var__=$1
+
+    if [[ ${__var__@a} = A ]]; then
+        return 0; # true
+    else
+        return 1; # false
     fi
 }
 
@@ -129,13 +155,13 @@ function is_installed() {
 #
 # returns 0/1 based on whether <candidate> is numeric
 function is_numeric() {
-    local -r maybe_numeric="${1:?no value passed to is_numeric}"
+    local -n __var__=$1
 
-    if ! [[ "$maybe_numeric" =~ ^[0-9]+$ ]]; then
-        debug "is_numeric" "false"
+    if ! [[ "$__var__" =~ ^[0-9]+$ ]]; then
+        debug "is_numeric" "false (${__var__})"
         return 1
     else
-        debug "is_numeric" "true"
+        debug "is_numeric" "true (${__var__})"
         return 0
     fi
 }
@@ -161,10 +187,10 @@ function is_shell_command() {
 # 
 # tests whether <candidate> is an object and returns 0/1
 function is_object() {
-    local -r candidate="${1:-}"
+    local -n candidate=$1
 
-    if starts_with  "${candidate}" "${OBJECT_PREFIX}"; then
-        if ends_with "${candidate}""${OBJECT_SUFFIX}"; then
+    if not_empty "$candidate" && starts_with  "${OBJECT_PREFIX}" "${candidate}" ; then
+        if not_empty "$candidate" && ends_with "${OBJECT_SUFFIX}" "${candidate}"; then
             debug "is_object" "true"
             return 0
         fi
@@ -174,18 +200,18 @@ function is_object() {
     return 1
 }
 
-# file_contains <filepath> <...find> 
+# file_contains <filepath> <...matches> 
 # 
 # will search the contents of the file in the "filepath" passed in for 
 # any substring which matches one of the parameters passed in for 
 # "find".
 function file_contains() {
     local -r filepath="${1:?filepath expression not passed to file_has_content()}"
-    local -ra find=( "${@:2}");
+    local -ra matches=( "${@:2}");
 
     local -r content="$(get_file "$filepath")"
 
-    for item in "${find[@]}"; do
+    for item in "${matches[@]}"; do
         if [[ "${content}" =~ ${item} ]]; then
             return 0 # successful match
         fi
@@ -205,14 +231,15 @@ function str_eq() {
 }
 
 function is_list() {
-    local -r content="${1:-}"
-    if starts_with "${LIST_PREFIX}" "${content}"; then
-        if ends_with "${LIST_SUFFIX}" "${content}"; then
+    local -n __var__=$1
+
+    if not_empty "${__var__}" && starts_with "${LIST_PREFIX}" "${__var__}"; then
+        if not_empty "${__var__}" && ends_with "${LIST_SUFFIX}" "${__var__}"; then
             debug "is_list" "true"
             return 0
         else
             debug "is_list" "false (prefix matched, suffix did not): \"${LIST_SUFFIX}\""
-            debug "is_list" "${content}"
+            debug "is_list" "${__var__}"
             return 1
         fi
     fi
@@ -340,16 +367,24 @@ function has_env() {
 #
 # tests whether passed in <test> is considered a "KV Pair"
 function is_kv_pair() {
-    local -r test="${1:-}"
+    # local -r test="$1"
+    local -n test_by_ref=$1 2>/dev/null
 
-    if starts_with "${KV_PREFIX}" "${test}"; then
-        if ends_with "${KV_SUFFIX}" "${test}"; then
-            debug "is_kv_pair" "true (\"${DIM}${test}${RESET}\")"
+    # if not_empty "${test}" && starts_with "${KV_PREFIX}" "${test}"; then
+    #     if ends_with "${KV_SUFFIX}" "${test}"; then
+    #         debug "is_kv_pair" "true (\"${DIM}${test}${RESET}\")"
+    #         return 0
+    #     fi
+    # fi
+
+    if not_empty "${test_by_ref}" && starts_with "${KV_PREFIX}" "${test_by_ref}"; then
+        if ends_with "${KV_SUFFIX}" "${test_by_ref}"; then
+            debug "is_kv_pair" "true (\"${DIM}${test_by_ref}${RESET}\")"
             return 0
         fi
     fi
 
-    debug "is_kv_pair" "false (\"${DIM}${test}${RESET}\")"
+    debug "is_kv_pair" "false (val: '${1}', ref: '${test_by_ref}'\")"
     return 1
 }
 

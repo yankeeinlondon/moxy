@@ -42,7 +42,7 @@ function preferred_distro() {
 
     clear
     local -r distro=$(ask_radiolist radio)
-    replace_line_in_file_or_append "${MOXY_CONFIG}" "DEFAULT_DISTRO=" "DEFAULT_DISTRO=${distro}"
+    replace_line_in_file_or_append "${MOXY_CONFIG_FILE}" "DEFAULT_DISTRO=" "DEFAULT_DISTRO=${distro}"
 }
 
 
@@ -72,14 +72,14 @@ function sudo_user() {
         local -r username=$(ask_inputbox _username)
 
         if was_cancelled "$username" || [[ "${#username}" -lt 2 ]]; then
-            replace_line_in_file_or_append "${MOXY_CONFIG}" "SUDO_USER" "SUDO_USER=true"
+            replace_line_in_file_or_append "${MOXY_CONFIG_FILE}" "SUDO_USER" "SUDO_USER=true"
         else 
-            replace_line_in_file_or_append "${MOXY_CONFIG}" "SUDO_USER" "SUDO_USER=${username}"
+            replace_line_in_file_or_append "${MOXY_CONFIG_FILE}" "SUDO_USER" "SUDO_USER=${username}"
         fi
 
 
     else
-        replace_line_in_file_or_append "${MOXY_CONFIG}" "SUDO_USER" "SUDO_USER=false"
+        replace_line_in_file_or_append "${MOXY_CONFIG_FILE}" "SUDO_USER" "SUDO_USER=false"
     fi
 
 }
@@ -107,5 +107,5 @@ function ssh_access() {
 
     local -r choice=$(ask_radiolist _radio)
 
-    replace_line_in_file_or_append "${MOXY_CONFIG}" "DEFAULT_SSH" "DEFAULT_SSH=${choice}"
+    replace_line_in_file_or_append "${MOXY_CONFIG_FILE}" "DEFAULT_SSH" "DEFAULT_SSH=${choice}"
 }

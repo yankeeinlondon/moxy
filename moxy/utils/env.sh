@@ -3,7 +3,7 @@
 # ENV variable definitions
 
 
-export MOXY_CONFIG="${HOME}/.moxy"
+export MOXY_CONFIG_FILE="${MOXY_CONFIG_FILE}:-${HOME}/.config/moxy/config.toml"
 
 export CANCELLED="CANCELLED"
 
@@ -12,7 +12,7 @@ export LIST_DELIMITER="${LIST_DELIMITER:-|*|}"
 export LIST_PREFIX="list::["
 export LIST_SUFFIX="]"
 export OBJECT_PREFIX="${OBJECT_PREFIX:-object::{ }"
-export OBJECT_SUFFIX="${OBJECT_SUFFIX:- }}"
+export OBJECT_SUFFIX="${OBJECT_SUFFIX:- \}::object}"
 export OBJECT_DELIMITER="${OBJECT_DELIMITER:-|,|}"
 export KV_PREFIX="${KV_PREFIX:-kv[}"
 export KV_SUFFIX="${KV_SUFFIX:-]}"

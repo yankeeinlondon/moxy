@@ -3,9 +3,6 @@
 . "./utils/shared.sh"
 
 
-log "Next ID: $(next_container_id "")"
-log "OS: $(os)"
-
 # function ok() {
 #     local -ra resp=("$@")
 
@@ -29,22 +26,77 @@ log "OS: $(os)"
 # try hi ok oops "foo bar"
 
 
-declare -rA _username=(
-    [title]="What should the sudo users' default username be?\n\nRemember that this is just a default username which you'll start with each time you create a new container."
-    [backmsg]="Moxy Preferences"
-    [width]=60
-    [height]=23
-    [ok]="Set Default Username"
-    [cancel]="Exit"
-    [on_cancel]="exit"
-    [exit_msg]="See ya"
+# declare -rA _username=(
+#     [title]="What should the sudo users' default username be?\n\nRemember that this is just a default username which you'll start with each time you create a new container."
+#     [backmsg]="Moxy Preferences"
+#     [width]=60
+#     [height]=23
+#     [ok]="Set Default Username"
+#     [cancel]="Exit"
+#     [on_cancel]="exit"
+#     [exit_msg]="See ya"
+# )
+
+# username=$(ask_inputbox _username)
+
+# if was_cancelled "$username"; then
+#     log "was cancelled"
+# else
+
+#     log "username: ${username}"
+# fi
+
+declare -a _ARR=( "foo" "bar" "baz forever")
+# typeof ARR
+is_array _ARR && echo "yup, array" || echo "nope"
+typeof _ARR
+
+declare -A _ASSOC=(
+     [foo]="bar"
+     [ass]="hole"
 )
+is_assoc_array _ASSOC && echo "yup, an associative array" || echo "nope"
+typeof _ASSOC  
 
-username=$(ask_inputbox _username)
+_NUM=4
+is_numeric _NUM && echo "yup, numeric" || echo "not numeric!"
+typeof _NUM
 
-if was_cancelled "$username"; then
-    log "was cancelled"
-else
+_List=$(list "foo" "bar" "baz")
+typeof _List
 
-    log "username: ${username}"
-fi
+KV=$(kv "one" "two")
+echo "KV type is '$(typeof KV)' = $KV"
+
+
+ObjFromKv=$(object "foo=bar" "bar=baz")
+echo "ObjFromKv type is '$(typeof ObjFromKv)' = ${ObjFromKv}"
+
+ObjFromAssoc=$(object _ASSOC)
+echo "ObjFromAssoc type is '$(typeof ObjFromKv)' = ${ObjFromAssoc}"
+
+_STR="foobar"
+typeof _STR
+
+_EMPTY=""
+typeof _EMPTY
+
+log ""
+MY_ARR=("foo" "bar" "baz")
+_EMPTY=()
+
+pop _EMPTY LESS_THAN_NONE
+echo "Less: ${LESS_THAN_NONE}"
+
+pop MY_ARR VAL
+
+echo "Popped value: ${VAL}"
+echo "Remaining[${#MY_ARR[@]}]: ${MY_ARR[*]}"
+
+while pop MY_ARR VAL; do
+    echo "Popped ${VAL}"
+done
+
+while pop _ASSOC KEY VAL; do
+    echo "Key: ${KEY}, Val: ${VAL}"
+done

@@ -20,7 +20,8 @@
 . "./utils/interactive/ask.sh"
 # shellcheck source="./preferences.sh"
 . "./utils/preferences.sh"
-
+# shellcheck source="./file.sh"
+. "./utils/file.sh"
 
 function test_if_ready_to_start() {
 
@@ -104,13 +105,20 @@ EOF
         exit 1
     fi
 
+    if [[ "$MOXY_CONFIG_FILE" == "${HOME}/.config/moxy/moxy.toml" ]]; then
+        ensure_directory "${HOME}/.config"
+        ensure_directory "${HOME}/.config/moxy"
+    else
+        ensure_directory "$(strip_after "/moxy.toml" "$MOXY_CONFIG_FILE")"
+    fi
+
     if ! is_pve_node; then
         if ! has_command "wget"; then
             error "- to use moxy on a non-pve node you'll need to have 'wget' installed"
             exit 1
         fi
         
-        if ! file_contains "${MOXY_CONFIG}" "API_TOKEN"; then
+        if ! file_contains "${MOXY_CONFIG_FILE}" "API_TOKEN"; then
             if ! has_env "PVEAPIToken"; then
                 msg="Save API Token\n\nYou are not on a PVE node so we will need to use the Proxmox API:\n\n  - to do that we will need an API_KEY\n  - you can provide the ENV variable PVEAPIToken\n  - however, we can store your key in ~/.moxy\n  - permissions will be set so only you can access it\n\n\n  - if you don't have a key you can create via UI\n\nIf you'd prefer just to use ENV vars then exit, export the variable and run moxy again. \n\n";
 
@@ -130,7 +138,7 @@ EOF
             fi
         fi
 
-        if ! file_contains "${MOXY_CONFIG}" "NODE="; then
+        if ! file_contains "${MOXY_CONFIG_FILE}" "NODE="; then
 
             msg="Add PVE Node\n\nIn order to start we will need at least one PVE node to work on. If you choose a node that is a cluster node then all of the nodes in the cluster will be made available\n\nPlease enter the IPv4 address of your first node:"
 
@@ -143,15 +151,15 @@ EOF
 
     pve_version_check;
 
-    if ! file_contains "${MOXY_CONFIG}" "DEFAULT_DISTRO"; then
+    if ! file_contains "${MOXY_CONFIG_FILE}" "DEFAULT_DISTRO"; then
         preferred_distro
     fi
 
-    if ! file_contains "${MOXY_CONFIG}" "SUDO_USER"; then
+    if ! file_contains "${MOXY_CONFIG_FILE}" "SUDO_USER"; then
         sudo_user
     fi
 
-    if ! file_contains "${MOXY_CONFIG}" "DEFAULT_SSH"; then
+    if ! file_contains "${MOXY_CONFIG_FILE}" "DEFAULT_SSH"; then
         ssh_access
     fi
 

@@ -41,7 +41,7 @@ function http_status_code() {
 #
 # Combines the base URL, the host and the path
 function get_pve_url() {
-    local -r host=${1:?no PVE hose passed to get_pve_url()}
+    local -r host=${1:?no PVE host passed to get_pve_url()}
     local -r path=${2:-/}
     local -r base="https://${host}:8006/api2/json"
 
@@ -79,7 +79,7 @@ function reverse_lookup() {
 # Returns all the required text to add an Authentication header
 # to curl.
 function pve_auth_header() {
-    local -r def_token=$(find_in_file "${MOXY_CONFIG}" "DEFAULT_TOKEN")
+    local -r def_token=$(find_in_file "${MOXY_CONFIG_FILE}" "DEFAULT_TOKEN")
 
     if not_empty "$def_token"; then
         echo "-H \"Authorization:PVEAPIToken=${def_token}\""
@@ -87,7 +87,7 @@ function pve_auth_header() {
 
     else
         # shellcheck disable=SC2207
-        local -ra all_tokens=($(findall_in_file "${MOXY_CONFIG}" "API_TOKEN"))
+        local -ra all_tokens=($(findall_in_file "${MOXY_CONFIG_FILE}" "API_TOKEN"))
 
         if  [[ $(length "${all_tokens[@]}") -gt 0 ]]; then
             echo "-H \"Authorization=PVEAPIToken=${all_tokens[0]}\""

@@ -15,7 +15,7 @@
 . "./utils/help.sh"
 
 # shellcheck source="./ready.sh"
-. "./utils/ready.sh"
+# . "./utils/ready.sh"
 # shellcheck source="./conditionals.sh"
 . "./utils/conditionals.sh"
 # shellcheck source="./mutate.sh"
