@@ -175,9 +175,8 @@ function ensure_directory() {
     local -r dirpath="${1}"
 
     if is_empty "$dirpath"; then
-        catch_errors
         error "ensure_directory(dirpath) called with no \$dirpath!"
-        return 12
+        return 1
     fi
 
 

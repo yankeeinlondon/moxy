@@ -111,6 +111,14 @@ push _SHIFTY 6 7 8
 echo "after pushing literal values to shifty: ${_SHIFTY[*]}"
 
 echo "CONFIG: ${MOXY_CONFIG_FILE}"
-ensure_directory "${HOME}/.config/moxy"
+# ensure_directory "${HOME}/.config/moxy"
 
+function test_function() {
+    catch_errors
+    # Code that may cause an error
+    false # This will trigger an error
+    allow_errors
+}
+
+test_function
 

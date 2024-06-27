@@ -127,7 +127,11 @@ function ensure_config_dir() {
     if ! config_file_exists; then
         if has_env "MOXY_CONFIG_FILE"; then
             local -r config_dir=$(remove_file_from_filepath  "$MOXY_CONFIG_FILE")
-            ensure_directory "$config_dir"
+            if not_empty "$config_dir"; then
+                ensure_directory "$config_dir"
+            else
+                error "The configuration directory resolved to an empty string!" 1
+            fi
         else
             error "no MOXY_CONFIG_FILE env variable is set!"
         fi

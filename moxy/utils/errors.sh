@@ -3,6 +3,8 @@
 . "./utils/env.sh"
 # shellcheck source="./logging.sh"
 . "./utils/logging.sh"
+# shellcheck source="./conditionals.sh"
+. "./utils/conditionals.sh"
 
 export ERR_UNKNOWN_CONTAINER_TYPE=5
 export ERR_INVALID_DEREF_KEY=10
@@ -24,6 +26,8 @@ export ERR_MENU_INVALID_CHOICES=121
 
 export ERR_INVALID_API_KEY=130
 
+export CALL_STACK=()
+
 function returned() {
     local -ri code="${1:-Function must provide a return code to returned()}"
     local -r err_msg="${2}"
@@ -32,7 +36,7 @@ function returned() {
 
     if [[ $code -eq 0 ]]; then
 
-        return 0;
+        return 0
     else
         log "${BOLD}${RED}Error in ${current["fn"]}() with ID ${current["id"]}:${RESET} ${err_msg}"
 
@@ -59,15 +63,9 @@ function panic() {
     exit $code
 }
 
-# error <msg>
+# error_path()
 #
-# sends an error message to STDERR and if an error code
-# has been included then it will return that error code too
-function error() {
-    log "${RED}ERROR →${RESET} ${1}"
-}
-
-
+# makes a prettier display of the error path
 function error_path() {
     local -r path="$1"
     allow_errors
@@ -84,34 +82,53 @@ function error_path() {
 
 }
 
+# error <msg>
+#
+# sends a formatted error message to STDERR
+function error() {
+    local -r msg="${1:?no message passed to error()!}"
+    local -ri code=$(( "${2:-1}" ))
+    local -r fn="${3:-${FUNCNAME[1]}}"
+    local -r line="${4:-${BASH_LINENO[0]}}"
+    local -r file="${5:-${BASH_SOURCE[1]}}"
+
+    log "\n  [${RED}x${RESET}] ${BOLD}ERROR ${DIM}${RED}$code${RESET}${BOLD} →${RESET} ${msg}" && return $code
+}
+
+
+
+
 # error_handler()
 #
 # Handles error when they are caught
 function error_handler() {
-    local -r exit_code="$?"
-    local -r line_number="$1"
+    local -r _exit_code="$?"
+    local -r _line_number="$1"
     local -r command="$2"
 
-    log "  [${RED}x${RESET}] ERROR [${BOLD}${exit_code}${RESET}] at line ${line_number} while executing command \"${DIM}$command${RESET}\""
+    # shellcheck disable=SC2016
+    if [[ "$command" != 'return $code' ]]; then
+        log "  [${RED}x${RESET}] ${BOLD}ERROR ${DIM}${RED}$code${RESET}${BOLD} → ${command}${RESET} "
+    fi
     log ""
-    local -i i
-    i=0
-    for file in "${BASH_SOURCE[@]}"; do
 
-        if ! contains "errors.sh" "$file"; then
-            log "- ${FUNCNAME[$i]}() ${ITALIC}${DIM}at line${RESET} ${BASH_LINENO[$i]} ${ITALIC}${DIM}in${RESET} $(error_path "${file}")"
+    for i in "${!BASH_SOURCE[@]}"; do
+        if ! contains "errors.sh" "${BASH_SOURCE[$i]}"; then
+            log "    - ${FUNCNAME[$i]}() ${ITALIC}${DIM}at line${RESET} ${BASH_LINENO[$i-1]} ${ITALIC}${DIM}in${RESET} $(error_path "${BASH_SOURCE[$i]}")"
         fi
-        i=$(( i + 1 ))
     done
+    log ""
 }
+
+
 
 # catch_errors()
 #
 # Catches all errors found in a script -- including pipeline errors -- and
 # sends them to an error handler to report the error.
 function catch_errors() {
-  set -Eeuo pipefail
-  trap 'error_handler $LINENO "$BASH_COMMAND"' ERR
+    set -Eeuo pipefail
+    trap 'error_handler $LINENO "$BASH_COMMAND"' ERR
 }
 
 # allow_errors()
@@ -122,52 +139,4 @@ function catch_errors() {
 function allow_errors() {
     set +Eeuo pipefail
     trap - ERR
-}
-
-function error_state_fails() {
-    local -r current_state=$-
-    case $current_state in
-
-        *e*) return 0;;
-        *) return 1;;
-
-    esac
-}
-
-# pause_errors()
-#
-# Passes back the current state of error handling so it may be restored
-# later but then disables it at this point.
-function pause_errors() {
-    local -r current_state=$-
-    case $current_state in
-
-        *e*) echo "true";;
-        *) echo "false";;
-
-    esac
-
-    return 0
-}
-
-function restore_errors() {
-    local -r prior="${1:?no prior state was passed into restore_errors}"
-
-    if [[ "$prior" == "true" ]]; then
-        set -e
-    fi
-}
-
-
-# manage_err () -> "prior error state"
-#
-# Turns off error (aka, set -e) but returns
-# what the single-letter states were prior
-# to doing to so that you can revert back
-# to this state at the appropriate time
-function manage_err() {
-    local -r set_state="$(shell_options)"
-    set +e
-    echo "${set_state}"
-    return 0
 }
