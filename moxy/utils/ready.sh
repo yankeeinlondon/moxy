@@ -26,74 +26,52 @@
 function ensure_curl() {
     if ! has_command "curl"; then
         error "- to use moxy on a non-pve node you'll need to have 'curl' installed"
-        exit 1
+        exit
     fi
 }
 
 function ensure_bash() {
-    if using_bash_3; then
+    log ""
+    log "Yuck! You are using an ancient ${GREEN}bash${RESET} version: ${BOLD}$(bash_version)${RESET}!"
+    log ""
+    log "In order to use ${BOLD}Moxy${RESET} you'll need ${ITALIC}at least${RESET} version 4 of bash"
+    log "and any package manager worth it's grain in salt will give you"
+    log "version 5.x of bash."
+    log ""
 
-cat <<"EOF"
-                ______.------.
-            /'              \
-            /'\               \
-        ..-'\()'\    .'''.    ./'
-        |                .'    /
-        \..}                '\.
-        /     {      /'  '\   \
-        {------'    .'      '.  '|
-        \        . |         \   |
-        '\_____/  |          |   |
-        /       |           |    |
-        .'       |            |   |
-        |       |            |     |
-        |      |            |     |
-        |                  |       \
-                                    |
-EOF
+    if starts_with "macos" "$(os)";then
+        log "Noticed that you're running on macOS and that's likely why"
+        log "you're on such an old version. Apple's OS is ${ITALIC}way${RESET} behind"
+        log "WRT to ${GREEN}bash${RESET} but the ${BOLD}Homebrew${RESET} package manager has a modern version."
         log ""
-        log "Yuck! You are using an ancient ${GREEN}bash${RESET} version: ${BOLD}$(bash_version)${RESET}!"
-        log ""
-        log "In order to use ${BOLD}Moxy${RESET} you'll need ${ITALIC}at least${RESET} version 4 of bash"
-        log "and any package manager worth it's grain in salt will give you"
-        log "version 5.x of bash."
-        log ""
-
-        if starts_with "macos" "$(os)";then
-            log "Noticed that you're running on macOS and that's likely why"
-            log "you're on such an old version. Apple's OS is ${ITALIC}way${RESET} behind"
-            log "WRT to ${GREEN}bash${RESET} but the ${BOLD}Homebrew${RESET} package manager has a modern version."
-            log ""
-            if has_command "brew";then
-                log "I see you have ${BOLD}Homebrew${RESET} installed, would you like to upgrade"
-                if text_confirm "now?"; then
-                    # install newer version of bash via homebrew
-                    brew update
-                    brew install bash
-                    eval "$(brew shellenv)"
-                    log ""
-                    log ""
-                    log "- bash has been installed [$(bash_version)]"
-                    log "- you might have to re-source your shell to ensure the\n  the new ${GREEN}bash${RESET} is in the path"
-                    log ""
-
-                else 
-                    log "don't"
-                fi
+        if has_command "brew";then
+            log "I see you have ${BOLD}Homebrew${RESET} installed, would you like to upgrade"
+            if text_confirm "now?"; then
+                # install newer version of bash via homebrew
+                brew update
+                brew install bash
+                eval "$(brew shellenv)"
                 log ""
-            else
-                log "You don't have ${BOLD}Homebrew${RESET}(${DIM}https://brew.sh/${RESET}) so I'll let you upgrade"
-                log "to the latest ${GREEN}bash${RESET} yourself before trying ${BOLD}Moxy${RESET} again."
                 log ""
+                log "- bash has been installed [$(bash_version)]"
+                log "- you might have to re-source your shell to ensure the\n  the new ${GREEN}bash${RESET} is in the path"
+                log ""
+
+            else 
+                log "don't"
             fi
+            log ""
         else
-            log "Use your package manager to install a newer version of ${GREEN}bash${RESET}"
-            log "and then rerun ${BOLD}Moxy${RESET}"
+            log "You don't have ${BOLD}Homebrew${RESET}(${DIM}https://brew.sh/${RESET}) so I'll let you upgrade"
+            log "to the latest ${GREEN}bash${RESET} yourself before trying ${BOLD}Moxy${RESET} again."
             log ""
         fi
-
-        exit
+    else
+        log "Use your package manager to install a newer version of ${GREEN}bash${RESET}"
+        log "and then rerun ${BOLD}Moxy${RESET}"
+        log ""
     fi
+    exit
 }
 
 function  ensure_tui() {
@@ -117,7 +95,9 @@ function ensure_jq() {
 }
 
 function  ensure_dependant_programs() {
-    ensure_bash
+    if using_bash_3; then
+        ensure_bash
+    fi
     ensure_curl
     ensure_tui
     ensure_jq
@@ -126,28 +106,20 @@ function  ensure_dependant_programs() {
 function ensure_config_dir() {
     if ! config_file_exists; then
         if has_env "MOXY_CONFIG_FILE"; then
-            local -r config_dir=$(remove_file_from_filepath  "$MOXY_CONFIG_FILE")
-            if not_empty "$config_dir"; then
-                ensure_directory "$config_dir"
-            else
-                error "The configuration directory resolved to an empty string!" 1
-            fi
+            local -r config_dir=$(remove_file_from_filepath  "${MOXY_CONFIG_FILE}")
+            ensure_directory "${config_dir}"
         else
-            error "no MOXY_CONFIG_FILE env variable is set!"
+            error "no MOXY_CONFIG_FILE env variable is set!" 1
         fi
     fi
 }
 
 function configure_non_pve_node() {
     if ! is_pve_node; then
-        
-        
         if ! config_has "API_TOKEN"; then
             if ! has_env "PVEAPIToken"; then
-                title="Save API Token\n\nYou are not on a PVE node so we will need to use the Proxmox API:\n\n  - to do that we will need an API_KEY\n  - you can provide the ENV variable PVEAPIToken\n  - however, we can store your key in ~/.moxy\n  - permissions will be set so only you can access it\n\n\n  - if you don't have a key you can create via UI\n\nIf you'd prefer just to use ENV vars then exit, export the variable and run moxy again. \n\n";
-
                 declare -A token=(
-                    [title]="${title}"
+                    [title]="Save API Token\n\nYou are not on a PVE node so we will need to use the Proxmox API:\n\n  - to do that we will need an API_KEY\n  - you can provide the ENV variable PVEAPIToken\n  - however, we can store your key in ~/.config/moxy/config.toml\n  - permissions will be set so only you can access it\n\n\n  - if you don't have a key you can create via UI\n\nIf you'd prefer just to use ENV vars then exit, export the variable and run moxy again. \n\n"
                     [backmsg]="Proxmox Config"
                     [height]=23
                     [width]=60
@@ -158,6 +130,10 @@ function configure_non_pve_node() {
                 )
 
                 API="$(ask_inputbox token )"
+
+                if is_empty "$API"; then
+                    panic "Didn't get a valid API Token; quiting"
+                fi
 
                 if [ "${#API}" -lt 8 ]; then
                     clear
@@ -181,8 +157,7 @@ function configure_non_pve_node() {
             fi
         fi
 
-        if ! file_contains "${MOXY_CONFIG_FILE}" "NODE="; then
-
+        if ! config_has "NODE"; then
 
             declare -Ar _node=(
                 [title]="Add PVE Node\n\nIn order to start we will need at least one PVE node to work on. If you choose a node that is a cluster node then all of the nodes in the cluster will be made available\n\nPlease enter the IPv4 address of your first node:"
@@ -197,8 +172,14 @@ function configure_non_pve_node() {
 
             NODE="$(ask_inputbox _node)"
 
-            printf "%s\n" "NODE=${NODE}" >> "${HOME}/.moxy"
-            chmod 600 "${HOME}/.moxy"
+            if is_empty "$NODE"; then
+                panic "Didn't receive an IP address for you're first Proxmox Node; quiting."
+            else
+                update_config "NODE" "$NODE" "true"
+                update_config "DEFAULT_NODE" "$NODE"
+            fi
+
+            # printf "%s\n" "NODE=${NODE}" >> "${HOME}/.moxy"
         fi
     fi
 }
@@ -223,7 +204,6 @@ function ensure_proper_configuration() {
     ensure_config_dir
     configure_non_pve_node
     pve_version_check
-
     configure_preferences
 }
 

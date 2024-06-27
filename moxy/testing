@@ -4,6 +4,48 @@
 
 catch_errors
 
+function check() {
+    local -r arithmetic='→+-=><%'
+    if has_characters "${arithmetic}" "$1"; then
+        log "had arithemetic chars"
+    else
+        log "did not"
+    fi
+}
+
+check "abc"
+check 'ab→bc'
+check 'sub-monkey"'
+
+is_bound FOOBAR2 && echo "foobar2 is bound" || echo "foobar2 is NOT bound"
+
+FOOBAR="foobar"
+
+is_bound FOOBAR && echo "foobar is bound" || echo "foobar is not bound"
+is_bound "hippo" && echo "hippo is bound" || echo "hippo is not bound"
+is_bound 42 && echo "42 is bound" || echo "42 is not bound"
+NUM=42
+is_bound NUM && echo "numeric ref is bound" || echo "numeric ref is not bound"
+
+
+declare -Ar TOKEN=(
+    [title]="Save API Token\n\nYou are not on a PVE node so we will need to use the Proxmox API:\n\n  - to do that we will need an API_KEY\n  - you can provide the ENV variable PVEAPIToken\n  - however, we can store your key in ~/.config/moxy/config.toml\n  - permissions will be set so only you can access it\n\n\n  - if you don't have a key you can create via UI\n\nIf you'd prefer just to use ENV vars then exit, export the variable and run moxy again. \n\n"
+    [backmsg]="Proxmox Config"
+    [height]=23
+    [width]=60
+    [ok]="Save API Key"
+    [cancel]="Exit"
+    [on_cancel]="exit"
+    [exit_msg]="${GREEN}PVEAPIToken${RESET} ENV variable and then reload Moxy."
+)
+
+is_bound TOKEN && echo "token is bound" ||echo "token is NOT bound "
+is_assoc_array TOKEN && echo "token is obj" || echo "token is NOT obj ${TOKEN@a}"
+
+
+
+# API="$(ask_inputbox token )"
+
 # function ok() {
 #     local -ra resp=("$@")
 
@@ -40,85 +82,84 @@ catch_errors
 
 # username=$(ask_inputbox _username)
 
-# if was_cancelled "$username"; then
+# if waasks_cancelled "$username"; then
 #     log "was cancelled"
 # else
 
 #     log "username: ${username}"
 # fi
 
-declare -a _ARR=( "foo" "bar" "baz forever")
-# typeof ARR
-is_array _ARR && echo "yup, array" || echo "nope"
-typeof _ARR
+# declare -a _ARR=( "foo" "bar" "baz forever")
+# # typeof ARR
+# is_array _ARR && echo "yup, array" || echo "nope"
+# typeof _ARR
 
-declare -A _ASSOC=(
-     [foo]="bar"
-     [ass]="hole"
-)
-is_assoc_array _ASSOC && echo "yup, an associative array" || echo "nope"
-typeof _ASSOC  
+# declare -A _ASSOC=(
+#      [foo]="bar"
+#      [ass]="hole"
+# )
+# is_assoc_array _ASSOC && echo "yup, an associative array" || echo "nope"
+# typeof _ASSOC  
 
-_NUM=4
-is_numeric _NUM && echo "yup, numeric" || echo "not numeric!"
-typeof _NUM
+# _NUM=4
+# is_numeric _NUM && echo "yup, numeric" || echo "not numeric!"
+# typeof _NUM
 
-_List=$(list "foo" "bar" "baz")
-typeof _List
+# _List=$(list "foo" "bar" "baz")
+# typeof _List
 
 KV=$(kv "one" "two")
+is_kv_pair KV & echo "KV!" || "ooops"
+is_kv_pair "$KV" & echo "KV!" || "ooops"
+
+is_bound "$KV" & echo "\$KV is bound?" || "\$KV is unbound"
+
 echo "KV type is '$(typeof KV)' = $KV"
+echo "KV type is '$(typeof "${KV}")' = $KV"
 
-ObjFromKv=$(object "foo=bar" "bar=baz")
-echo "ObjFromKv type is '$(typeof ObjFromKv)' = ${ObjFromKv}"
+# ObjFromKv=$(object "foo=bar" "bar=baz")
+# echo "ObjFromKv type is '$(typeof ObjFromKv)' = ${ObjFromKv}"
 
-ObjFromAssoc=$(object _ASSOC)
-echo "ObjFromAssoc type is '$(typeof ObjFromKv)' = ${ObjFromAssoc}"
+# ObjFromAssoc=$(object _ASSOC)
+# echo "ObjFromAssoc type is '$(typeof ObjFromKv)' = ${ObjFromAssoc}"
 
-_STR="foobar"
-typeof _STR
+# _STR="foobar"
+# typeof _STR
 
-_EMPTY=""
-typeof _EMPTY
+# _EMPTY=""
+# typeof _EMPTY
 
-log ""
-MY_ARR=("foo" "bar" "baz")
-_EMPTY=()
+# log ""
+# MY_ARR=("foo" "bar" "baz")
+# _EMPTY=()
 
-pop _EMPTY LESS_THAN_NONE
-echo "Less: ${LESS_THAN_NONE}" # empty string
+# pop _EMPTY LESS_THAN_NONE
+# echo "Less: ${LESS_THAN_NONE}" # empty string
 
-echo "BashID is ${BASHPID}"
+# echo "BashID is ${BASHPID}"
 
-pop MY_ARR VAL
+# pop MY_ARR VAL
 
-echo "Popped value: ${VAL}"
-echo "Remaining[${#MY_ARR[@]}]: ${MY_ARR[*]}"
+# echo "Popped value: ${VAL}"
+# echo "Remaining[${#MY_ARR[@]}]: ${MY_ARR[*]}"
 
-while pop MY_ARR VAL; do
-    echo "Popped ${VAL}"
-done
+# while pop MY_ARR VAL; do
+#     echo "Popped ${VAL}"
+# done
 
-while pop _ASSOC KEY VAL; do
-    echo "Key: ${KEY}, Val: ${VAL}"
-done
-echo "Assoc array is now: ${#_ASSOC[*]}"
+# while pop _ASSOC KEY VAL; do
+#     echo "Key: ${KEY}, Val: ${VAL}"
+# done
+# echo "Assoc array is now: ${#_ASSOC[*]}"
 
-_SHIFTY=(1 2 3 4 5)
-unshift _SHIFTY FIRST
-echo "unshifting SHIFTY provides ${FIRST} and '${_SHIFTY[*]}' remains"
-push _SHIFTY 6 7 8
-echo "after pushing literal values to shifty: ${_SHIFTY[*]}"
+# _SHIFTY=(1 2 3 4 5)
+# unshift _SHIFTY FIRST
+# echo "unshifting SHIFTY provides ${FIRST} and '${_SHIFTY[*]}' remains"
+# push _SHIFTY 6 7 8
+# echo "after pushing literal values to shifty: ${_SHIFTY[*]}"
 
-echo "CONFIG: ${MOXY_CONFIG_FILE}"
-# ensure_directory "${HOME}/.config/moxy"
+# echo "CONFIG: ${MOXY_CONFIG_FILE}"
+# # ensure_directory "${HOME}/.config/moxy"
 
-function test_function() {
-    catch_errors
-    # Code that may cause an error
-    false # This will trigger an error
-    allow_errors
-}
-
-test_function
+# remove_file_from_filepath "/Users/ken/.config/moxy/config.toml"
 

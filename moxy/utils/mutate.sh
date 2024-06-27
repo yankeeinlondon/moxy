@@ -81,8 +81,9 @@ function replace_line_in_file_or_append() {
 # given a semver version number, this extracts the major version number
 function major_version() {
     local -r semver="${1:?no semver version number provided to major_version()}"
+    local -a parts
     # shellcheck disable=SC2207
-    local -ra parts=($(split_on "." "${semver}"))
+    parts=( $(split_on "." "${semver}") )
 
     echo "${parts[0]}"
 }
@@ -115,7 +116,7 @@ function nbsp_to_space() {
     fi
 }
 
-# split_on <delimiter> <content> → array
+# split_on <delimiter> <content> <ref:array>
 #
 # splits string content on a given delimiter and returns
 # an array
@@ -129,7 +130,7 @@ function split_on() {
         debug "split_on" "no parameters provided!"
         error "split_on() called with no parameters provided!" 10
     elif [[ "$delimiter" == "not-specified" ]]; then
-        debug "split_on" "split string not specified so will use <space>"
+        debug "split_on" "delimiter string not specified so will use <space>"
         delimiter=" "
     elif [[ "$content" == "no-content" ]]; then
         debug "split_on" "no content, will return empty array but this may be a mistake"
@@ -148,11 +149,9 @@ function split_on() {
         content=${content#*"$delimiter"}
     done
 
-
     debug "split_on" "split into ${YELLOW}${BOLD}${#parts[@]}${RESET} parts: ${DIM}${parts[*]}${RESET}"
 
-    echo "${parts[@]}"
-    return 0
+    printf "%s" "${parts[*]}"
 }
 
 
@@ -319,6 +318,7 @@ function object() {
     local object_defn=""
 
     if is_assoc_array assoc_candidate; then
+        debug "object" "parsing associative array"
         for key in "${!assoc_candidate[@]}"; do
             local kv_pair
             kv_pair=$(kv "${key}" "${assoc_candidate[${key}]}")
@@ -327,15 +327,18 @@ function object() {
     else 
         for i in "${initial[@]}"; do
             if is_kv_pair "${i}"; then
+                debug "object" "parsing KV syntax: ${i}"
                 object_defn="${object_defn}${OBJECT_DELIMITER}${i}"
 
-            elif contains "=" "${i}"; then
+            elif has_characters "=" "${i}"; then
+                debug "object" "parsing x=y syntax: ${i}"
                 local key_value
                 key_value=$(kv "$(strip_after "=" "${i}")" "$(strip_before "=" "${i}")")
                 object_defn="${object_defn}${OBJECT_DELIMITER}${key_value}"
             else
+                debug "object" "uncertain initializer: ${i}"
                 if ! is_assoc_array "${i}"; then
-                    warn "invalid inializer value passed to object(): ${DIM}${i}${RESET}"
+                    error "invalid inializer value passed to object(): ${DIM}${i}${RESET}"
                 fi
             fi
         done

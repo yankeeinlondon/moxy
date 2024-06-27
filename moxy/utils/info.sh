@@ -2,7 +2,8 @@
 
 # shellcheck source="./env.sh"
 . "./utils/env.sh"
-
+# shellcheck source="./errors.sh"
+. "./utils/errors.sh"
 # shellcheck source="./logging.sh"
 . "./utils/logging.sh"
 # shellcheck source="./conditionals.sh"
@@ -31,21 +32,32 @@ function find_in_file() {
 
     if file_exists "${filepath}"; then
         debug "find_in_file(${filepath})" "file found"
-        local -a found=()
+        local found=""
 
         while read -r line; do
-            if not_empty "${line}" && contains "${line}" "${key}"; then
+            if not_empty "${line}" && contains "${key}" "${line}"; then
                 if starts_with "${key}=" "${line}"; then
-                    found+=("$(strip_leading "${key}=" "${line}")")
+                    found="$(strip_leading "${key}=" "${line}")"
                 else
-                    found+=("${line}")
+                    found="${line}"
                 fi
+                break
             fi
         done < "$filepath"
 
-        echo "${found[0]}"
+        if not_empty "$found"; then
+            debug "find_in_file" "found ${key}: ${found}"
+            printf "%s" "$found"
+            return 0
+        else
+            debug "find_in_file" "Did not find '${key}' in the file at '${filepath}'"
+            echo ""
+            return 0
+        fi
+
+        
     else
-        debug "find_in_file(${filepath})" "no file at filepath"
+        debug "find_in_file" "no file at filepath"
         return 1
     fi
 }
@@ -221,33 +233,64 @@ function ui_availability() {
 function typeof() {
     allow_errors
     local -n _var_type=$1 2>/dev/null
-
-    if is_array _var_type; then
-        echo "array"
-    elif is_assoc_array _var_type; then
-        echo "assoc-array"
-    elif is_numeric _var_type; then
-        echo "number"
-    elif is_list _var_type; then
-        echo "list"
-    elif is_kv_pair _var_type; then
-        echo "kv"
-    elif is_object _var_type; then
-        echo "object"
-    elif is_empty "${_var_type}"; then
-        echo "empty"
-    else
-        echo "string"
-    fi
     catch_errors
+
+    if is_bound _var_type; then
+        debug "typeof" "testing bound variable: $1"
+
+        if is_array _var_type; then
+            echo "array"
+        elif is_assoc_array _var_type; then
+            echo "assoc-array"
+        elif is_numeric _var_type; then
+            echo "number"
+        elif is_list _var_type; then
+            echo "list"
+        elif is_kv_pair _var_type; then
+            echo "kv"
+        elif is_object _var_type; then
+            echo "object"
+        elif is_function _var_type; then
+            echo "function"
+        elif is_empty _var_type; then
+            echo "empty"
+        else
+            echo "string"
+        fi
+    else
+        debug "typeof" "testing unbound variable: $1"
+        if is_numeric "$1"; then
+            echo "number"
+        elif is_list "$1"; then
+            echo "list"
+        elif is_kv_pair "$1"; then
+            echo "kv"
+        elif is_object "$1"; then
+            echo "object"
+        elif is_function "$1"; then
+            echo "function"
+        elif is_empty "${1}"; then
+            echo "empty"
+        else
+            echo "string"
+        fi
+    fi
 }
 
 function is_not_typeof() {
     allow_errors
     local -n _var_reference_=$1
     local -r test="${2:-is_not_typeof(var,type) did not provide a type!}"
+    catch_errors
 
-    if is_empty "$_var_reference_"; then
+    if is_bound _var_reference_; then
+        if [[ "$test" != "$(typeof _var_reference_)" ]]; then
+            
+            return 0
+        else
+            return 1
+        fi
+    else
         local val="$1"
 
         if is_empty "$val"; then
@@ -260,23 +303,24 @@ function is_not_typeof() {
                 return 0
             fi
         fi
-    fi
 
-    if [[ "$test" != "$(typeof _var_reference_)" ]]; then
-        catch_errors
-        return 0
-    else
-        catch_errors
-        return 1
     fi
+    
 }
 
 function is_typeof() {
     allow_errors
     local -n _var_reference_=$1
     local -n test="${2:-is_not_typeof(var,type) did not provide a type!}"
+    catch_errors
 
-    if is_empty "$_var_reference_"; then
+    if is_bound _var_reference_; then
+        if [[ "$test" == "$(typeof _var_reference_)" ]]; then
+            return 0
+        else
+            return 1
+        fi
+    else
         local val="$1"
 
         if is_empty "$val"; then
@@ -291,13 +335,7 @@ function is_typeof() {
         fi
     fi
 
-    if [[ "$test" == "$(typeof _var_reference_)" ]]; then
-        catch_errors
-        return 0
-    else
-        catch_errors
-        return 1
-    fi
+
 }
 
 # get <index> <container>
@@ -504,13 +542,16 @@ function get_MOXY_CONFIG_FILE() {
 #
 # Get's an ENV variable name when defined or returns <default>
 function get_env() {
+    allow_errors
     local -r var="${1:?get_env() called but no variable name passed in!}"
     local -r val="${!var}"
     local -r def_val="${2:-}"
+    catch_errors
+
     if not_empty "$val"; then
-        log "${val}"
+        echo "${val}"
     else
-        log "${def_val}"
+        echo "${def_val}"
     fi
 }
 

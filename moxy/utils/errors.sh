@@ -54,14 +54,7 @@ function called() {
     push CALL_STACK _stack_el
 }
 
-function panic() {
-    local -r msg="${1:-Exiting due to panic!}"
-    local -ri code=${2:-((1))}
-    catch_errors
 
-    log "$$: ${msg}"
-    exit $code
-}
 
 # error_path()
 #
@@ -82,6 +75,23 @@ function error_path() {
 
 }
 
+function panic() {
+    local -r msg="${1:?no message passed to error()!}"
+    local -ri code=$(( "${2:-1}" ))
+    local -r fn="${3:-${FUNCNAME[1]}}"
+
+    log "\n  [${RED}x${RESET}] ${BOLD}ERROR ${DIM}${RED}$code${RESET}${BOLD} →${RESET} ${msg}" 
+    log ""
+
+    for i in "${!BASH_SOURCE[@]}"; do
+        if ! contains "errors.sh" "${BASH_SOURCE[$i]}"; then
+            log "    - ${FUNCNAME[$i]}() ${ITALIC}${DIM}at line${RESET} ${BASH_LINENO[$i-1]} ${ITALIC}${DIM}in${RESET} $(error_path "${BASH_SOURCE[$i]}")"
+        fi
+    done
+    log ""
+    exit $code
+}
+
 # error <msg>
 #
 # sends a formatted error message to STDERR
@@ -89,26 +99,22 @@ function error() {
     local -r msg="${1:?no message passed to error()!}"
     local -ri code=$(( "${2:-1}" ))
     local -r fn="${3:-${FUNCNAME[1]}}"
-    local -r line="${4:-${BASH_LINENO[0]}}"
-    local -r file="${5:-${BASH_SOURCE[1]}}"
 
     log "\n  [${RED}x${RESET}] ${BOLD}ERROR ${DIM}${RED}$code${RESET}${BOLD} →${RESET} ${msg}" && return $code
 }
-
-
 
 
 # error_handler()
 #
 # Handles error when they are caught
 function error_handler() {
-    local -r _exit_code="$?"
+    local -r exit_code="$?"
     local -r _line_number="$1"
     local -r command="$2"
 
     # shellcheck disable=SC2016
-    if [[ "$command" != 'return $code' ]]; then
-        log "  [${RED}x${RESET}] ${BOLD}ERROR ${DIM}${RED}$code${RESET}${BOLD} → ${command}${RESET} "
+    if is_bound command && [[ "$command" != 'return $code' ]]; then
+        log "  [${RED}x${RESET}] ${BOLD}ERROR ${DIM}${RED}$exit_code${RESET}${BOLD} → ${command}${RESET} "
     fi
     log ""
 

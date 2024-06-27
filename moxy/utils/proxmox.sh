@@ -32,7 +32,12 @@ function is_pve_node() {
 #
 # Combines the base URL, the host and the path
 function get_pve_url() {
-    local -r host=${1:?no PVE host passed to get_pve_url()}
+    local -r host=${1:?$(config_property "DEFAULT_NODE")}
+
+    if is_empty host; then
+        panic "Call to get_pve_url() provided no Host information and we were unable to get this from DEFAULT_NODE in your configuration file: ${DIM}${MOXY_CONFIG_FILE}${RESET}"
+    fi
+
     local -r path=${2:-/}
     local -r base="https://${host}:8006/api2/json"
 
@@ -74,9 +79,9 @@ function set_default_token() {
 
 # get_default_node()
 #
-# Gets the address for the "default host" for PVE.
+# Gets the ip address for the PVE "default host".
 function get_default_node() {
-    local -r def_node=$(find_in_file "${MOXY_CONFIG_FILE}" "DEFAULT_NODE")
+    local -r def_node=$(config_property "DEFAULT_NODE")
 
     if not_empty "$def_node"; then
         echo "${def_node}"
@@ -139,8 +144,12 @@ function get_next_container_id() {
 # then the "default host" will be used.
 # shellcheck disable=SC2120
 function get_pve_version() {
-    local -r host="${1:-"$(get_default_node)"}"
+    local -r host="${1:-"$(config_property "DEFAULT_NODE")"}"
     local -r url=$(get_pve_url "${host}" "/version")
+    if is_empty host; then
+        panic "Failed to get a PVE host, including the default node. Please make sure your configuration file has a DEFAULT_NODE set!"
+    fi
+
     local -r resp=$(fetch_get "${url}" "$(pve_auth_header)")
     local -r version="$(echo "${resp}" | jq --raw-output '.data.version')"
     

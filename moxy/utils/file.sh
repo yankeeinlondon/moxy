@@ -10,6 +10,8 @@
 . "./utils/conditionals.sh"
 # shellcheck source="./info.sh"
 . "./utils/info.sh"
+# shellcheck source="./mutate.sh"
+. "./utils/mutate.sh"
 
 # file_exists <filepath>
 #
@@ -48,8 +50,7 @@ function directory_exists() {
 # on the system (yet)
 function parent_directory() {
     local -r filepath="${1:?no filepath was passed to split_filepath()}"
-    local -a paths
-    paths=( split_on "$(os_path_delimter)" "${filepath}" )
+    local -ar paths=( "$(split_on "$(os_path_delimter)" "${filepath}" )" )
     pop paths VOID
     local -r subdir=$(join_with "$(os_path_delimeter)" "${paths[*]}")
 
@@ -63,13 +64,19 @@ function parent_directory() {
 # underlying operating system.
 function split_filepath() {
     local -r filepath="${1:?no filepath was passed to split_filepath()}"
+    local -r delimiter=$(os_path_delimiter)
+    allow_errors
     # shellcheck disable=SC2178
     local -n __array__=$2
+    debug "split_filepath" "ready to split '${filepath}' with '${delimiter}'; array type '$(typeof __array__)'."
 
     if is_array __array__; then
-        # shellcheck disable=SC2207
-        __array__=( $(split_on "$(os_path_delimiter)" "$filepath") )
+        split_on "${delimiter}" "${filepath}" __array__
+
+        debug "split_filepath" "split '${filepath}' on '$delimiter' into ${#__array__[@]} parts"
+        catch_errors
     else
+        debug "split_filepath" "array parameter passed in was wrong type: $(typeof __array__)"
         error "split_filepath() expects an array to passed in as $2"
     fi
 }
@@ -119,9 +126,16 @@ function rejoin_file_parts() {
 # attempts to ensure that the passed in path is a valid
 # directory path (not a file path)
 function remove_file_from_filepath() {
-    local -r dirpath="${1:?no dirpath was passed to ensure_directory()}"
+    allow_errors
+    local -r dirpath="${1:?no dirpath was passed to remove_file_from_filepath()}"
+    local -r delimiter=$(os_path_delimiter)
     local -a parts
-    split_filepath "$dirpath" parts
+    debug "remove_file_from_filepath" "about to split the initial $dirpath with '${delimiter}'"
+    local -r temp="$(split_on "$delimiter" "$dirpath")"
+    # shellcheck disable=SC2206
+    parts=(  ${temp[@]} )
+    catch_errors
+
     debug "remove_file_from_filepath" "split filepath into ${#parts[@]} parts"
 
     if file_exists "$dirpath"; then
@@ -150,7 +164,7 @@ function remove_file_from_filepath() {
             local last
             pop parts last
             if contains ".toml" "${last}" || contains ".txt" "${last}" || contains ".pdf" "${last}" || contains ".json" "${last}"; then
-                debug "remove_file_from_filepath" "removed TOML file, path now $(rejoin_file_parts "$dirpath" parts)"
+                debug "remove_file_from_filepath" "removed TOML file ($last), path now $(rejoin_file_parts "$dirpath" parts)"
                 local new_dir
                 new_dir=$(remove "$last" "$dirpath")
                 new_dir=$(strip_trailing "/" "${new_dir}")
@@ -162,7 +176,7 @@ function remove_file_from_filepath() {
                     debug "remove_file_from_filepath" "the parent directory above that passed is valid so using that"
                     return 0
                 else
-                    error "uncertain how to effectively remove a filename to achieve a valid directory path"
+                    error "uncertain how to effectively remove a filename to achieve a valid directory path" 1
                 fi
             fi
         fi
@@ -179,16 +193,18 @@ function ensure_directory() {
         return 1
     fi
 
-
     # shellcheck disable=SC2207
-    local -a parts
+    local -a parts=()
     split_filepath "$dirpath" parts
 
     if directory_exists "${dirpath}"; then
         debug "ensure_directory" "the directory path '${dirpath}' already existed"
     else
-        mkdir "${dirpath}"
-        debug "ensure_directory" "the directory '${dirpath}' was created"
+        if mkdir "${dirpath}"; then
+            debug "ensure_directory" "the directory '${dirpath}' was created"
+        else
+            error "Failed to create directory $dirpath" 1
+        fi
     fi
 }
 
@@ -225,7 +241,13 @@ function update_config() {
 
     if has_env "MOXY_CONFIG_FILE"; then
         if [[ "$allow_multi" == "true" ]]; then
-            echo "NOT DONE"
+            if ! file_contains "${MOXY_CONFIG_FILE}" "${key}=${value}"; then
+                if printf "%s\n" "${key}=${value}" >> "${MOXY_CONFIG_FILE}"; then 
+                    return 0
+                else
+                    error "Problems adding '${key}' key/value to configuration file" 1
+                fi
+            fi
         else
             replace_line_in_file_or_append "${MOXY_CONFIG_FILE}" "${key}" "${key}=${value}"
         fi
@@ -278,3 +300,22 @@ function config_has() {
     fi
 }
 
+function config_property() {
+    local -r property="${1}"
+
+    if is_empty "$property"; then
+        panic "Call to config_property(property) did NOT supply a property name!" 1
+    fi
+
+    if starts_with "DEFAULT_" "$property"; then
+        # shellcheck disable=SC2178
+        local -r found=$(find_in_file "${MOXY_CONFIG_FILE}" "$property")
+
+        # shellcheck disable=SC2128
+        if is_empty "${found}"; then
+            error "${property} property not found in config file: ${DIM}${MOXY_CONFIG_FILE}${RESET}" 1
+        else
+            printf "%s" "${found}"
+        fi
+    fi
+}

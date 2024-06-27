@@ -9,12 +9,13 @@ HTTP_HEADERS="-H \"Accept: */*\"}"
 source "./utils/env.sh"
 # shellcheck source="./logging.sh"
 source "./utils/logging.sh"
+# shellcheck source="./errors.sh"
+source "./utils/errors.sh"
 
 function fetch_get() {
-    called "fetch_get" "??"
     local -r url="${1}"
     if is_empty "$url"; then
-        returned 1 "fetch_get() was called without providing a URL!"
+        error "fetch_get() was called without providing a URL!" 1
     fi
     local -r auth=${2:?-}
     local -r cmd="curl -X GET --location ${url} ${HTTP_HEADERS} ${auth} --insecure --silent"
@@ -23,13 +24,11 @@ function fetch_get() {
     debug "fetch_get()" "response -> ${req}"
 
     printf "%s" "${req}"
-
-    returned 0
 }
 
 # get_html <url>
 function get_html() {
-    local -r url=${1:?no URL was passed to fetch_get()}
+    local -r url=${1:?no URL was passed to get_html()}
     local -r resp="$(curl --location "${url}" --insecure)"
     
     printf "%s" "${resp}"

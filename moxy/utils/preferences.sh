@@ -4,8 +4,11 @@
 . "./utils/env.sh"
 # shellcheck source="./logging.sh"
 . "./utils/logging.sh"
+# shellcheck source="./mutate.sh"
+. "./utils/mutate.sh"
 # shellcheck source="./interactive/ask.sh"
 . "./utils/interactive/ask.sh"
+
 
 export DISTRO_CHOICES=(
     "Alpine_3.18" "3.18" OFF
@@ -37,12 +40,17 @@ function preferred_distro() {
         [height]=23  
         [radio_height]=12 
         [choices]="${DISTRO_CHOICES[@]}"
-        [exit_msg]="fine, you'll get nothing then!"
+        [exit_msg]="Ok, see you later ..."
     )
 
     clear
     local -r distro=$(ask_radiolist radio)
-    replace_line_in_file_or_append "${MOXY_CONFIG_FILE}" "DEFAULT_DISTRO=" "DEFAULT_DISTRO=${distro}"
+    if is_empty "distro"; then
+        update_config "DEFAULT_DISTRO" "Debian_12"
+    else
+        update_config "DEFAULT_DISTRO" "$distro"
+    fi
+    
 }
 
 

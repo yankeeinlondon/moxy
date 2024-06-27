@@ -93,13 +93,18 @@ function tui() {
 function ask_radiolist() {
     # shellcheck disable=SC2178
     local -n data=$1
+
+    if ! is_bound data; then
+        panic "Called for a radiolist dialog and didn't bind a configuration object to the request!"
+    fi
+
     local -r title="${data["title"]}"
-    local -r backmsg="${data["backmsg"]}"
-    local -r height="${data["height"]}"
-    local -r width="${data["width"]}" 
-    local -r radio_height="${data["radio_height"]}"
+    local -r backmsg="${data["backmsg"]}:-Moxy"
+    local -r height="${data["height"]:-23}"
+    local -r width="${data["width"]:-60}" 
+    local -r radio_height="${data["radio_height"]:-12}"
     local -ra choices="${data["choices"]}"
-    local -r exit_msg="${data["exit_msg"]}"
+    local -r exit_msg="${data["exit_msg"]}:-Goodbye"
     local -ra params=(
         "--backtitle \"${backmsg}\""
         "--radiolist \"${title}\" ${height} ${width} ${radio_height}"
@@ -117,7 +122,7 @@ function ask_radiolist() {
         exit 1
     fi
     debug "ask_radiolist" "asking for radiolist with: ${cmd}"
-    local -r choice=$(eval "$cmd" || exit_ask "$exit_msg")
+    local -r choice=$(eval "$cmd") || exit_ask "$exit_msg"
 
     echo "${choice}"
 }
@@ -127,14 +132,14 @@ function ask_radiolist() {
 # creates a dialog box with a yes/no dialog
 function ask_yes_no() {
     # shellcheck disable=SC2178
-    local -nA data=$1
+    local -n data=$1
     local -r title="${data["title"]}"
     local -r backmsg="${data["backmsg"]}"
     local -r height="${data["height"]}"
     local -r width="${data["width"]}" 
     local -r yes="${data["yes"]}"
     local -r no="${data["no"]}"
-    local -r exit_msg="${data["exit_msg"]}"
+    local -r exit_msg="${data["exit_msg"]:-Goodbye}"
     local -ra params=(
         "--backtitle \"${backmsg}\""
         "--yesno \"${title}\" ${height} ${width}"
@@ -207,11 +212,13 @@ function ask_inputbox() {
     allow_errors
     # shellcheck disable=SC2178
     local -n data=$1
+    catch_errors
 
-    if is_typeof data "empty"; then
-        error "Call to ask_inputbox() received without any parameter configuration passed in!"
+    if ! is_bound data; then
+        panic "Call to ask_inputbox() received without any parameter configuration passed in!" 1
     elif is_not_typeof data "assoc-array"; then
-        error "ask_inputbox() expects an associative array to be passed in for configuration purposes but got '$(typeof data)' instead!"
+        panic "ask_inputbox() expects an associative array to be passed in for configuration purposes but got '$(typeof data)' instead!"
+        exit 1
     fi
 
     local -r title="${data["title"]}"
@@ -220,8 +227,8 @@ function ask_inputbox() {
     local -r width="${data["width"]}" 
     local -r ok="${data["ok"]}"
     local -r cancel="${data["cancel"]}"
-    local -r on_cancel="${data["on_cancel"]} || echo 'exit'"
-    local -r exit_msg="${data["exit_msg"]}" || "Goodbye"
+    local -r on_cancel="${data["on_cancel"]:-exit}"
+    local -r exit_msg="${data["exit_msg"]:-Goodbye}"
     
     local -r tool="$(tui)"
     catch_errors
