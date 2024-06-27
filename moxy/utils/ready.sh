@@ -23,8 +23,14 @@
 # shellcheck source="./file.sh"
 . "./utils/file.sh"
 
-function test_if_ready_to_start() {
+function ensure_curl() {
+    if ! has_command "curl"; then
+        error "- to use moxy on a non-pve node you'll need to have 'curl' installed"
+        exit 1
+    fi
+}
 
+function ensure_bash() {
     if using_bash_3; then
 
 cat <<"EOF"
@@ -88,7 +94,9 @@ EOF
 
         exit
     fi
+}
 
+function  ensure_tui() {
     if ! ui_availability; then
         log "- you must have either the ${BOLD}display${RESET} ${ITALIC}or${RESET} ${BOLD}whiptail${RESET} to run the TUI on Moxy"
         log "  - all debian distributions and therefore all PVE nodes will have whiptail"
@@ -98,59 +106,100 @@ EOF
         log ""
         exit 1
     fi
+}
 
+function ensure_jq() {
     if ! has_command "jq"; then
         log "- you must have ${BOLD}${GREEN}jq${RESET} available on your system to run Moxy"
         log "- it is a very popular library and should be available on every platform"
         exit 1
     fi
+}
 
-    if [[ "$MOXY_CONFIG_FILE" == "${HOME}/.config/moxy/moxy.toml" ]]; then
-        ensure_directory "${HOME}/.config"
-        ensure_directory "${HOME}/.config/moxy"
-    else
-        ensure_directory "$(strip_after "/moxy.toml" "$MOXY_CONFIG_FILE")"
-    fi
+function  ensure_dependant_programs() {
+    ensure_bash
+    ensure_curl
+    ensure_tui
+    ensure_jq
+}
 
-    if ! is_pve_node; then
-        if ! has_command "wget"; then
-            error "- to use moxy on a non-pve node you'll need to have 'wget' installed"
-            exit 1
+function ensure_config_dir() {
+    if ! config_file_exists; then
+        if has_env "MOXY_CONFIG_FILE"; then
+            local -r config_dir=$(remove_file_from_filepath  "$MOXY_CONFIG_FILE")
+            ensure_directory "$config_dir"
+        else
+            error "no MOXY_CONFIG_FILE env variable is set!"
         fi
-        
-        if ! file_contains "${MOXY_CONFIG_FILE}" "API_TOKEN"; then
-            if ! has_env "PVEAPIToken"; then
-                msg="Save API Token\n\nYou are not on a PVE node so we will need to use the Proxmox API:\n\n  - to do that we will need an API_KEY\n  - you can provide the ENV variable PVEAPIToken\n  - however, we can store your key in ~/.moxy\n  - permissions will be set so only you can access it\n\n\n  - if you don't have a key you can create via UI\n\nIf you'd prefer just to use ENV vars then exit, export the variable and run moxy again. \n\n";
+    fi
+}
 
-                API="$(ask_inputbox "${msg}" 23 60 "Save Key" "Exit" "- add ${GREEN}PVEAPIToken${RESET} ENV variable and then reload Moxy.")"
+function configure_non_pve_node() {
+    if ! is_pve_node; then
+        
+        
+        if ! config_has "API_TOKEN"; then
+            if ! has_env "PVEAPIToken"; then
+                title="Save API Token\n\nYou are not on a PVE node so we will need to use the Proxmox API:\n\n  - to do that we will need an API_KEY\n  - you can provide the ENV variable PVEAPIToken\n  - however, we can store your key in ~/.moxy\n  - permissions will be set so only you can access it\n\n\n  - if you don't have a key you can create via UI\n\nIf you'd prefer just to use ENV vars then exit, export the variable and run moxy again. \n\n";
+
+                declare -A token=(
+                    [title]="${title}"
+                    [backmsg]="Proxmox Config"
+                    [height]=23
+                    [width]=60
+                    [ok]="Save API Key"
+                    [cancel]="Exit"
+                    [on_cancel]="exit"
+                    [exit_msg]="${GREEN}PVEAPIToken${RESET} ENV variable and then reload Moxy."
+                )
+
+                API="$(ask_inputbox token )"
 
                 if [ "${#API}" -lt 8 ]; then
                     clear
+                    clear
                     log ""
                     log ""
-                    error "The key you passed in was too short [${#API} characters], please refer to the Promox docs for how to generate the key and test it out with Postman or equivalent if you're unsure if it's right"
+                    error "The API key you passed in was too short [${#API} characters], please refer to the Promox docs for how to generate the key and test it out with Postman (or equivalent) if you're unsure if it's right"
                     exit 1
                 fi
+                
+                # for consistency sake, make sure the leading 
+                # 'PVEAPIToken=' is not included and we'll add
+                # it into the Authorization header when we need it
+                API_TOKEN="$(strip_leading "PVEAPIToken=" "${API}")"
+                update_config "API_TOKEN" "${API_TOKEN}" "true"
 
-                printf "%s\n" "API_TOKEN=$(strip_leading "PVEAPIToken=" "${API}")" >> "${HOME}/.moxy"
-                printf "%s\n" "DEFAULT_TOKEN=$(strip_leading "PVEAPIToken=" "${API}")" >> "${HOME}/.moxy"
-                chmod 600 "${HOME}/.moxy"
+                # also make this token the "default token" as right
+                # now it is the only token
+                update_config "DEFAULT_TOKEN" "${API_TOKEN}"
+                
             fi
         fi
 
         if ! file_contains "${MOXY_CONFIG_FILE}" "NODE="; then
 
-            msg="Add PVE Node\n\nIn order to start we will need at least one PVE node to work on. If you choose a node that is a cluster node then all of the nodes in the cluster will be made available\n\nPlease enter the IPv4 address of your first node:"
 
-            NODE="$(ask_inputbox "${msg}" 23 60 "Add Node" "Exit")"
+            declare -Ar _node=(
+                [title]="Add PVE Node\n\nIn order to start we will need at least one PVE node to work on. If you choose a node that is a cluster node then all of the nodes in the cluster will be made available\n\nPlease enter the IPv4 address of your first node:"
+                [backmsg]="Proxmox Config"
+                [width]=60
+                [height]=23
+                [ok]="Add Node"
+                [cancel]="Exit"
+                [on_exit]="exit"
+
+            )
+
+            NODE="$(ask_inputbox _node)"
 
             printf "%s\n" "NODE=${NODE}" >> "${HOME}/.moxy"
             chmod 600 "${HOME}/.moxy"
         fi
     fi
+}
 
-    pve_version_check;
-
+function configure_preferences() {
     if ! file_contains "${MOXY_CONFIG_FILE}" "DEFAULT_DISTRO"; then
         preferred_distro
     fi
@@ -162,7 +211,21 @@ EOF
     if ! file_contains "${MOXY_CONFIG_FILE}" "DEFAULT_SSH"; then
         ssh_access
     fi
-
-
 }
 
+function ensure_proper_configuration() {
+    # ALL REQUIRED PROGRAMS INSTALLED; NOW CHECK CONFIG
+
+    ensure_config_dir
+    configure_non_pve_node
+    pve_version_check
+
+    configure_preferences
+}
+
+function test_if_ready_to_start() {
+    ensure_dependant_programs
+    ensure_proper_configuration
+
+    make_config_secure
+}

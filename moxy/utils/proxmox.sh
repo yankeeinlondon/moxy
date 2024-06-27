@@ -28,12 +28,49 @@ function is_pve_node() {
     fi
 }
 
+# get_pve_url <host> <path>
+#
+# Combines the base URL, the host and the path
+function get_pve_url() {
+    local -r host=${1:?no PVE host passed to get_pve_url()}
+    local -r path=${2:-/}
+    local -r base="https://${host}:8006/api2/json"
+
+    if starts_with "/" "${path}"; then
+        echo "${base}${path}"
+    else
+        echo "${base}/${path}"
+    fi
+}
+
+# validate_api_key() <api_key>
+#
+# checks that a API call to Proxmox with the provided API_KEY
+# returns a 200 status code.
+function validate_api_key() {
+    local -r key="${1:?no URL was passed to fetch_get()}"
+
+    local -rA req=(
+        [url]="$(get_pve "/version")"
+        [auth]="${key}"
+    )
+
+    local -r code=$(validate_api_key "${key}")
+
+    if [[ "$code" == "200" ]]; then
+        debug "validate_api_key" "key was valid"
+        return 0
+    else
+        debug "validate_api_key" "invalid key [${code}]: ${key}"
+        return 1
+    fi
+}
+
 function set_default_token() {
     local -r token="${1:?no URL was passed to fetch_get()}"
 
     replace_line_in_file "${MOXY_CONFIG_FILE}" "DEFAULT_API" "DEFAULT_API=${token}"
 }
-
 
 # get_default_node()
 #
@@ -77,6 +114,50 @@ function pve_version() {
         echo "${version}"
         return 0
     fi
+}
+
+# get_next_container_id()
+function get_next_container_id() {
+    local host
+    if not_empty "$1"; then
+        host="${1}"
+    else
+        host="$(get_default_node)"
+    fi
+    local -r url=$(get_pve_url "${host}" "/cluster/nextid")
+    local -r resp=$(fetch_get "${url}" "$(pve_auth_header)")
+    local -r id="$(echo "${resp}" | jq --raw-output '.data')"
+    
+    printf "%s" "${id}"
+}
+
+
+# get_pve_version() <host::default_host>
+#
+# Gets the PVE version information via the Proxmox API.
+# You may optionally pass in a PVE HOST but if not
+# then the "default host" will be used.
+# shellcheck disable=SC2120
+function get_pve_version() {
+    local -r host="${1:-"$(get_default_node)"}"
+    local -r url=$(get_pve_url "${host}" "/version")
+    local -r resp=$(fetch_get "${url}" "$(pve_auth_header)")
+    local -r version="$(echo "${resp}" | jq --raw-output '.data.version')"
+    
+    printf "%s" "${version}"
+}
+
+# get_nodes() <[host]>
+#
+# Gets the nodes by querying either the <host> passed in
+# or the default host otherwise.
+function get_pve_nodes() {
+    local -r host=${1:?no PVE host passed to get_pve_url()}
+    local -r url="$(get_pve_url "${host}" "/nodes")"
+    local -r token=""
+    local -r outcome=$(curl -X GET -H \"Authorization=PVEAPIToken="${token}"\" "${url}")
+
+    echo "${outcome}"
 }
 
 # pve_version_check()

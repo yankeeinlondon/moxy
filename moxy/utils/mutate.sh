@@ -81,6 +81,7 @@ function replace_line_in_file_or_append() {
 # given a semver version number, this extracts the major version number
 function major_version() {
     local -r semver="${1:?no semver version number provided to major_version()}"
+    # shellcheck disable=SC2207
     local -ra parts=($(split_on "." "${semver}"))
 
     echo "${parts[0]}"
@@ -160,8 +161,8 @@ function split_on() {
 # Looks for "find" in the "content" string passed in and replaces it
 # with "replace".
 function replace() {
-    local -r find="${1:?the FIND string was not passed to replace}"
-    local -r replace="${2:?the REPLACE string was not passed to replace}"
+    local -r find="${1:?the FIND string was not passed to replace()}"
+    local -r replace="${2:?the REPLACE string was not passed to replace()}"
     local -r content="${3:-}"
     local new_content
     debug "replace" "replacing \"${find}\" with \"${replace}\""
@@ -169,6 +170,20 @@ function replace() {
     new_content="${content//"${find}"/"${replace}"}"
     debug "replace" "was: ${content}"
     debug "replace" "now: ${new_content}"
+    echo "${new_content}"
+    return 0
+}
+
+# remove <find> <content>
+#
+# Looks for "find" in the "content" string passed in and removes it.
+function remove() {
+    local -r find="${1:?the FIND string was not passed to replace()}"
+    local -r content="${2:-}"
+    local new_content
+
+    new_content="${content//"${find}"/}"
+    debug "remove" "\nwas: ${content}\nnow: ${new_content}"
     echo "${new_content}"
     return 0
 }
@@ -197,24 +212,47 @@ function join() {
     echo "${joined}"
 }
 
-# join_with <delimiter> <...list>
+# join_with <delimiter> <...list  | ref:array|list>
 #
 # Joins the all the parameters passed in to a single
 # string using <delimiter> between each parameter.
 function join_with() {
+    allow_errors
     local -r delimiter="${1:?the delimiter was not passed to join_with(delimiter, ...list)}"
     # shellcheck disable=SC2207
-    local -ra list=($( as_array "${@:2}" ))
-    local joined=""
-    debug "join_with(${delimiter})" "joining ${#list[@]} items"
-    for item in "${list[@]}"; do
-        if [[ "$joined" == "" ]]; then
-            joined="${item}"
-        else
-            joined="${joined}${delimiter}${item}"
-        fi
-    done
-    echo "${joined}"
+    local -n list_ref=$2
+
+    if is_typeof list_ref "list"; then
+        # shellcheck disable=SC2207
+        as_array list_ref
+    fi
+
+    if is_typeof list_ref "array"; then
+        local joined=""
+        debug "join_with(${delimiter})" "joining ${#list[@]} items"
+        for item in "${list_ref[@]}"; do
+            if [[ "$joined" == "" ]]; then
+                joined="${item}"
+            else
+                joined="${joined}${delimiter}${item}"
+            fi
+        done
+        echo "${joined}"
+    else
+        local -ra params=( "$@" )
+        local -ra parts=( "${params[@]:1}" )
+        local joined
+        joined=""
+        for item in "${parts[@]}"; do
+            if [[ "$joined" == "" ]]; then
+                joined="${item}"
+            else
+                joined="${joined}${delimiter}${item}"
+            fi
+        done
+
+    fi
+
 }
 
 
@@ -269,11 +307,14 @@ function list() {
 }
 
 function object() {
+    allow_errors
     local -n assoc_candidate=$1 2>/dev/null
     local -a initial=()
     if has_parameters "$@"; then
         initial=("${@}")
     fi
+    
+    catch_errors
 
     local object_defn=""
 
@@ -288,7 +329,7 @@ function object() {
             if is_kv_pair "${i}"; then
                 object_defn="${object_defn}${OBJECT_DELIMITER}${i}"
 
-            elif contains "${i}" "="; then
+            elif contains "=" "${i}"; then
                 local key_value
                 key_value=$(kv "$(strip_after "=" "${i}")" "$(strip_before "=" "${i}")")
                 object_defn="${object_defn}${OBJECT_DELIMITER}${key_value}"
@@ -305,6 +346,7 @@ function object() {
 
     debug "object" "${object_defn}"
     echo "${object_defn}"
+    
 
     return 0
 }
@@ -425,33 +467,37 @@ function object_to_kv_array() {
 # Ensures that <container> is a bash array and will convert
 # lists, objects, and proxy normal arrays
 function as_array() {
-    local container="${1:?as_array() did not receive a value}"
+    allow_errors
+    local -n __container=$1
 
-    if is_list "${container}"; then
-        elements=$(list_elements "${container}")
+    if is_list __container; then
+        elements=$(list_elements "${__container}")
         #shellcheck disable=SC2206
         local -a arr=( ${elements//"${LIST_DELIMITER}"/ } )
 
         debug "as_array" "array of length ${#arr[@]}: [ ${arr[*]} ]"
         printf "%s\n" "${arr[@]}"
 
+        catch_errors
         return 0
     fi
 
-    if is_object "${container}"; then
+    if is_object __container; then
         # shellcheck disable=SC2207
-        local -ra arr=( $(object_to_kv_array "${container}") )
+        local -ra arr=( $(object_to_kv_array "${__container}") )
         printf "%s\n" "${arr[@]}"
+        catch_errors
         return 0
     fi
 
-    if has_newline "${container}"; then
+    if has_newline "${__container}"; then
         debug "as_array()" "because it's a string with newline characters we'll assume it already was an array"
-        printf "%s" "$container"
+        printf "%s" "$__container"
+        catch_errors
         return 0
     fi
 
-
+    catch_errors
     debug "as_array" "container pattern not recognized: ${DIM}${1}${RESET}"
     return 1
 }
@@ -647,7 +693,7 @@ function strip_after_last() {
     local -r content="${2:-}"
 
     if not_empty "content"; then
-        echo "${content%%"${find}"*}"
+        echo "${content%"${find}"*}"
     else 
         echo ""
     fi
@@ -762,9 +808,17 @@ function true_false() {
 # If you pass in an associative array it will 
 # pop off both a "key" and a "value"
 function pop() {
+    allow_errors
     local -n __array__=$1
     local -n __value_or_key__=$2
     local -n __value_of_obj__=$3 2>/dev/null
+
+
+    if [ "$$" -ne "$BASHPID" ]; then
+        if [[ "$$" -ne "$APP_ID" ]]; then
+            warn "pop() was called from a subshell that is not the APP_ID. This is probably not what you want!"
+        fi
+    fi
 
     if is_array __array__; then
         # REGULAR ARRAY
@@ -778,13 +832,20 @@ function pop() {
         __value_or_key__="${__array__[-1]}"
         
         # remove the last element from the array
+        local -ri count="${#__array__[@]}"-1
+        debug "pop" "popped off ${BOLD}${__array__[1]}${RESET} from numeric array; leaving ${count[*]} elements"
         unset "__array__[-1]"
         __array__=("${__array__[@]}")
+        catch_errors
+
     elif is_assoc_array __array__; then
         # ASSOCIATIVE ARRAY
-        local -r keys=( "${!__array__[@]}")
+        allow_errors
+        local -ra keys=("${!__array__[@]}")
+        local -ri count=$(( ${#keys} ))
+        catch_errors
 
-        if [[ ${#keys} -eq 0 ]]; then
+        if [[ count -eq 0 ]]; then
             debug "pop" "pop() called on an empty associative array"
             __value_or_key__=""
             __value_of_obj3ect__=""
@@ -798,9 +859,153 @@ function pop() {
 
         unset "__array__[${last_key}]"
         # __array__=( "${__array__[@]}" )
+        catch_errors
+    else 
+        catch_errors
+        error "Unexpected type passed into pop()"
+    fi
+}
+
+
+# unshift() <ref:array> <ref:value-or-key> [<ref:value-of-obj>]
+#
+# Takes a reference to an array value and
+# pops off the first element while mutating the
+# <ref:array> to <ref:popped-value> and removes that
+# element from the array
+#
+# If you pass in an associative array it will 
+# pop off both a "key" and a "value"
+function unshift() {
+    allow_errors
+    # shellcheck disable=SC2178
+    local -n __array__=$1
+    local -n __value_or_key__=$2
+    local -n __value_of_obj__=$3 2>/dev/null
+
+    catch_errors
+
+    if [ "$$" -ne "$BASHPID" ]; then
+        if [[ "$$" -ne "$APP_ID" ]]; then
+            warn "unshift() was called from a subshell that is not the APP_ID. This is probably not what you want!"
+        fi
+    fi
+
+    if is_array __array__; then
+        # REGULAR ARRAY
+        if [[ ${#__array__} -eq 0 ]]; then
+            debug "pop" "pop() called on an empty array"
+            __value_or_key__=""
+            return 1
+        fi
+
+        # return the last element in the array
+        __value_or_key__="${__array__[0]}"
+        
+        # remove the last element from the array
+        local -ri count="${#__array__[@]}"-1
+        debug "pop" "popped off ${BOLD}${__array__[0]}${RESET} from numeric array; leaving ${count[*]} elements"
+        unset "__array__[0]"
+        __array__=("${__array__[@]}")
+
+    elif is_assoc_array __array__; then
+        # ASSOCIATIVE ARRAY
+        local -r keys=( "${!__array__[@]}")
+
+        if [[ ${#keys} -eq 0 ]]; then
+            debug "pop" "pop() called on an empty associative array"
+            __value_or_key__=""
+            __value_of_obj3ect__=""
+            return 1
+        fi
+
+        local -r first_key="${keys[0]}"
+
+        __value_or_key__="${first_key}"
+        __value_of_obj__="${__array__["$first_key"]}"
+
+        unset "__array__[${first_key}]"
+        __array__=( "${__array__[@]}" )
     else 
         error "Unexpected type passed into pop()"
     fi
+}
 
-    
+function push() {
+    allow_errors
+    # shellcheck disable=SC2178
+    local -n __array__=$1
+    # parameter for use when passed by value
+    local -ra params=( "$@" )
+    local -ra __params__=("${params[@]:1}")
+    local -ra __params_no_key__=("${params[@]:2}")
+    local -ra __params_no_key_or_val__=("${params[@]:3}")
+    local -n _ref_key=$2 2>/dev/null
+    local -n _ref_val=$3 2>/dev/null
+
+    catch_errors
+
+    if is_array __array__; then
+        # REGULAR NUMERIC ARRAY
+        if is_not_typeof ref_key "empty"; then
+            # no ref key so just add all params
+            __array__+=("${__params__[@]}")
+            debug "push" "pushed non-reference parameters onto numeric array: ${__params__[*]}; the array now has a length of ${#__array__[@]}."
+        else
+            if is_not_typeof ref_val "empty"; then
+                # two values treated as ref values
+                __array__+=(_ref_key _ref_val "${__params_no_key_or_val__[@]}")
+                local -r len="${#__params_no_key_or_val__[@]}"
+                debug "push" "pushed two reference values and ${len} non-reference values; length of array is now ${#__array__[@]}." 
+            else    
+                __array__+=(_ref_key "${__params_no_key__[@]}")
+                local -r len="${#__params_no_key__[@]}"
+                debug "push" "pushed one reference value and ${len} non-reference values; length of array is now ${#__array__[@]}."
+            fi
+        fi
+        return 0
+    elif is_assoc_array __array__; then
+        # ASSOCIATIVE ARRAY
+        if is_not_type ref_key "empty" && is_not_typeof ref_value "empty"; then
+            # both key and value are ref values
+            __array__["$_ref_key"]=$_ref_val
+        elif is_not_typeof ref_value "empty"; then
+            local -r k=$(typeof "$1")
+            if is_typeof k "string"; then
+                __array__["${1}"]=$_ref_val
+            else
+                error "invalid key value passed into push(${k})"
+            fi
+        else
+            local -r k=$(typeof "$1")
+            if is_typeof k "string"; then
+                if is_empty "$2"; then
+                    unset "__array__[$k]"
+                else
+                    __array__["${1}"]="${__value_of_obj__}"
+                fi
+            else
+                error "invalid key value passed into push(${k})"
+            fi
+        fi
+
+    else
+        error "invalid array passed into push(arr,...)"
+        exit 1
+    fi
+}
+
+
+function filter() {
+    # shellcheck disable=SC2178
+    local -na __array=$1
+    local -fn __fn=$2
+
+    for key in "${!__array[@]}"; do
+
+        if ! __fn "${__array[$key]}"; then
+            unset "${__array[key]}"
+        fi
+
+    done
 }

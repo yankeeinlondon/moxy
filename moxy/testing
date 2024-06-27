@@ -2,6 +2,7 @@
 
 . "./utils/shared.sh"
 
+catch_errors
 
 # function ok() {
 #     local -ra resp=("$@")
@@ -68,7 +69,6 @@ typeof _List
 KV=$(kv "one" "two")
 echo "KV type is '$(typeof KV)' = $KV"
 
-
 ObjFromKv=$(object "foo=bar" "bar=baz")
 echo "ObjFromKv type is '$(typeof ObjFromKv)' = ${ObjFromKv}"
 
@@ -86,7 +86,9 @@ MY_ARR=("foo" "bar" "baz")
 _EMPTY=()
 
 pop _EMPTY LESS_THAN_NONE
-echo "Less: ${LESS_THAN_NONE}"
+echo "Less: ${LESS_THAN_NONE}" # empty string
+
+echo "BashID is ${BASHPID}"
 
 pop MY_ARR VAL
 
@@ -100,3 +102,15 @@ done
 while pop _ASSOC KEY VAL; do
     echo "Key: ${KEY}, Val: ${VAL}"
 done
+echo "Assoc array is now: ${#_ASSOC[*]}"
+
+_SHIFTY=(1 2 3 4 5)
+unshift _SHIFTY FIRST
+echo "unshifting SHIFTY provides ${FIRST} and '${_SHIFTY[*]}' remains"
+push _SHIFTY 6 7 8
+echo "after pushing literal values to shifty: ${_SHIFTY[*]}"
+
+echo "CONFIG: ${MOXY_CONFIG_FILE}"
+ensure_directory "${HOME}/.config/moxy"
+
+

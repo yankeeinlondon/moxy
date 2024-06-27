@@ -12,10 +12,10 @@ export DISTRO_CHOICES=(
     "Debian_10" "Buster" OFF
     "Debian_11" "Bullseye" OFF
     "Debian_12" "Bookworm" ON
-    "Ubuntu_20_04" "Focal-LTS" OFF
-    "Ubuntu_22_04" "Jammy-LTS" OFF
+    "Ubuntu_20_04" "$(space_to_nbsp "Focal (LTS)")" OFF
+    "Ubuntu_22_04" "$(space_to_nbsp "Jammy (LTS)")" OFF
     "Ubuntu_23_04" "Lunar" OFF
-    "Ubuntu_24_04" "Noble-LTS" OFF
+    "Ubuntu_24_04" "$(space_to_nbsp "Noble (LTS)")" OFF
     "Fedora_38" "6.2" OFF
     "Fedora_39" "6.5" OFF
     "Fedora_40" "6.8" OFF

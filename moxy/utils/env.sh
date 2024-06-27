@@ -3,10 +3,15 @@
 # ENV variable definitions
 
 
-export MOXY_CONFIG_FILE="${MOXY_CONFIG_FILE}:-${HOME}/.config/moxy/config.toml"
+export MOXY_CONFIG_FILE="${HOME}/.config/moxy/config.toml"
 
 export CANCELLED="CANCELLED"
-
+# APP_ID
+# 
+# the PID assigned to the original script executed
+export APP_ID="${BASHPID}"
+declare -a CALL_STACK=()
+export CALL_STACK
 
 export LIST_DELIMITER="${LIST_DELIMITER:-|*|}"
 export LIST_PREFIX="list::["

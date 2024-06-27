@@ -11,7 +11,11 @@ source "./utils/env.sh"
 source "./utils/logging.sh"
 
 function fetch_get() {
-    local -r url=${1:?no URL was passed to fetch_get()}
+    called "fetch_get" "??"
+    local -r url="${1}"
+    if is_empty "$url"; then
+        returned 1 "fetch_get() was called without providing a URL!"
+    fi
     local -r auth=${2:?-}
     local -r cmd="curl -X GET --location ${url} ${HTTP_HEADERS} ${auth} --insecure --silent"
     debug "fetch_get()" "${cmd}"
@@ -19,6 +23,8 @@ function fetch_get() {
     debug "fetch_get()" "response -> ${req}"
 
     printf "%s" "${req}"
+
+    returned 0
 }
 
 # get_html <url>
@@ -29,28 +35,24 @@ function get_html() {
     printf "%s" "${resp}"
 }
 
-
+# http_status_code() <assoc: url,auth,head[] >
 function http_status_code() {
-    local -r url=${1:?no URL was passed to fetch_get()}
-    local -r http_code="$(curl -o /dev/null --silent -Iw '%{http_code}' --location "${url}"  --insecure)"
+    local -rAn req=$1
+    local -r url=${req["url"]}
+    local -r auth=${req["auth"]}
+    local Authorization
+    if not_empty "$auth"; then
+        Authorization="-H \"Authorization:PVEAPIToken=${auth}\""
+    else
+        Authorization=""
+    fi
+
+    local -r http_code="$(curl -o /dev/null --silent -Iw '%{http_code}' "${Authorization}" --location "${url}"  --insecure)"
 
     printf "%s" "$(strip_trailing "%" "${http_code}")"
 }
 
-# get_pve_url <host> <path>
-#
-# Combines the base URL, the host and the path
-function get_pve_url() {
-    local -r host=${1:?no PVE host passed to get_pve_url()}
-    local -r path=${2:-/}
-    local -r base="https://${host}:8006/api2/json"
 
-    if starts_with "/" "${path}"; then
-        echo "${base}${path}"
-    else
-        echo "${base}/${path}"
-    fi
-}
 
 function reverse_lookup() {
     local -r address="${1:?no address passed into reverse_lookup()}"
@@ -98,47 +100,3 @@ function pve_auth_header() {
     fi
 }
 
-
-# get_pve_version() <host::default_host>
-#
-# Gets the PVE version information via the Proxmox API.
-# You may optionally pass in a PVE HOST but if not
-# then the "default host" will be used.
-# shellcheck disable=SC2120
-function get_pve_version() {
-    local -r host="${1:-"$(get_default_node)"}"
-    local -r url=$(get_pve_url "${host}" "/version")
-    local -r resp=$(fetch_get "${url}" "$(pve_auth_header)")
-    local -r version="$(echo "${resp}" | jq --raw-output '.data.version')"
-    
-    printf "%s" "${version}"
-}
-
-# get_nodes() <[host]>
-#
-# Gets the nodes by querying either the <host> passed in
-# or the default host otherwise.
-function get_pve_nodes() {
-    local -r host=${1:?no PVE hose passed to get_pve_url()}
-    local -r url="$(get_pve_url "${host}" "/nodes")"
-    local -r token=""
-    local -r outcome=$(curl -X GET -H \"Authorization=PVEAPIToken="${token}"\" "${url}")
-
-    echo "${outcome}"
-}
-
-
-
-function get_next_container_id() {
-    local host
-    if not_empty "$1"; then
-        host="${1}"
-    else
-        host="$(get_default_node)"
-    fi
-    local -r url=$(get_pve_url "${host}" "/cluster/nextid")
-    local -r resp=$(fetch_get "${url}" "$(pve_auth_header)")
-    local -r id="$(echo "${resp}" | jq --raw-output '.data')"
-    
-    printf "%s" "${id}"
-}

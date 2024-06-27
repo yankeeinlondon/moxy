@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# shellcheck source="./env.sh"
+. "./utils/env.sh"
+
 # shellcheck source="./logging.sh"
 . "./utils/logging.sh"
 # shellcheck source="./conditionals.sh"
@@ -90,8 +93,10 @@ function distro() {
 # will try to detect the operating system of the host computer
 # or a container if a <vmid> is passed in as a parameter.
 function os() {
-    local -r vm_id="$1"
+    allow_errors
+    local -r vm_id="$1" 2>/dev/null
     local -r os_type=$(lc "${OSTYPE}") || "$(lc "$(uname)")" || "unknown"
+    catch_errors
 
     if is_empty "${vm_id}"; then
         case "$os_type" in
@@ -119,6 +124,14 @@ function os() {
                 ;;
             *) echo "unknown/${os_type}"
             esac
+    fi
+}
+
+function os_path_delimiter() {
+    if starts_with "windows" "$(os)"; then
+        echo "\\"
+    else
+        echo "/"
     fi
 }
 
@@ -206,7 +219,8 @@ function ui_availability() {
 }
 
 function typeof() {
-    local -n _var_type=$1
+    allow_errors
+    local -n _var_type=$1 2>/dev/null
 
     if is_array _var_type; then
         echo "array"
@@ -225,7 +239,65 @@ function typeof() {
     else
         echo "string"
     fi
+    catch_errors
+}
 
+function is_not_typeof() {
+    allow_errors
+    local -n _var_reference_=$1
+    local -r test="${2:-is_not_typeof(var,type) did not provide a type!}"
+
+    if is_empty "$_var_reference_"; then
+        local val="$1"
+
+        if is_empty "$val"; then
+            error "nothing was passed into the first parameter of is_not_typeof()"
+        else
+            local -r val_type="$(typeof val)"
+            if [[ "$val_type" == "$test" ]]; then
+                return 1
+            else
+                return 0
+            fi
+        fi
+    fi
+
+    if [[ "$test" != "$(typeof _var_reference_)" ]]; then
+        catch_errors
+        return 0
+    else
+        catch_errors
+        return 1
+    fi
+}
+
+function is_typeof() {
+    allow_errors
+    local -n _var_reference_=$1
+    local -n test="${2:-is_not_typeof(var,type) did not provide a type!}"
+
+    if is_empty "$_var_reference_"; then
+        local val="$1"
+
+        if is_empty "$val"; then
+            error "nothing was passed into the first parameter of is_not_typeof()"
+        else
+            local -r val_type="$(typeof val)"
+            if [[ "$val_type" == "$test" ]]; then
+                return 0
+            else
+                return 1
+            fi
+        fi
+    fi
+
+    if [[ "$test" == "$(typeof _var_reference_)" ]]; then
+        catch_errors
+        return 0
+    else
+        catch_errors
+        return 1
+    fi
 }
 
 # get <index> <container>
@@ -382,54 +454,6 @@ function count_char_in_str {
 }
 
 
-# push() <container> <...values>
-#
-# Pushes new <values> onto the <container>
-function push() {
-    local -r param_count="${#@}"
-
-    debug "push" "pushing with ${param_count} parameters: ${DIM}${*}${RESET}"
-
-    case "$param_count" in
-        "1") 
-            error "Invalid call to push(); only one parameter received: ${DIM}${*}${RESET}";;
-        "2") 
-            if is_list "${2}"; then
-                local elements=""
-                elements=$(list_elements "${2}")
-                debug "push" "added to list [ $(length "$elements" + 1)  ]"
-                echo "${LIST_PREFIX}${2}{$LIST_DELIMITER}${1}${LIST_SUFFIX}"
-                return 0
-
-            elif [[ $(is_object "${2}") && $(is_kv_pair "${1}") ]]; then
-                local obj=""
-                obj=$(set "$1" "$2")
-                debug "push" "pushed KV into an object"
-                echo "$obj"
-                return 0
-            else
-                error "Invalid call to push(); two parameters received wrong type: ${DIM}$*${RESET}" 1
-            fi
-            ;;
-        "3")
-            if is_object "${3}"; then
-                debug "push" "detected object (k:${1}, v:${2}, obj:${3})"
-                local obj=""
-                obj=$(object)
-                obj=$(set_value "$1" "$2" "$obj")
-                debug "push" "pushed a key ${ITALIC}and${RESET} value into an object [key: ${1}, value: ${2}]"
-                echo "${obj}"
-                return 0
-            else 
-                error "Invalid call to push(); three parameters but wrong types: ${DIM}${*}${RESET}" 1
-            fi
-
-            ;;
-        *) error "Invalid number of parameters in call to push(). 2 or 3 are ok but received ${param_count}!  ${DIM}${*}${RESET}";;
-    esac
-}
-
-
 # list_elements <list>
 #
 # strips the leading and trailing markers of a list, leaving only the
@@ -480,10 +504,11 @@ function get_MOXY_CONFIG_FILE() {
 #
 # Get's an ENV variable name when defined or returns <default>
 function get_env() {
-    local -r var="${1:?has_env() called but no variable name passed in!}"
-    local -r def_val="${2:-false}"
-    if has_env "$var"; then
-        log "${var}"
+    local -r var="${1:?get_env() called but no variable name passed in!}"
+    local -r val="${!var}"
+    local -r def_val="${2:-}"
+    if not_empty "$val"; then
+        log "${val}"
     else
         log "${def_val}"
     fi

@@ -4,6 +4,8 @@
 # load in support functions
 . "./utils/shared.sh"
 
+catch_errors
+
 test_if_ready_to_start
 
 
@@ -28,11 +30,5 @@ function moxy() {
 }
 
 
-# if [[ "${1}" == "lxc" ]]; then
-
-#     DISTRO=$(ask_radiolist "${CHOOSE_LXC_DISTRO}")
-
-
-# fi
 
 moxy "$@"

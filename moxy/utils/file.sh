@@ -11,31 +11,125 @@
 # shellcheck source="./info.sh"
 . "./utils/info.sh"
 
+# file_exists <filepath>
+#
+# tests whether a given filepath exists in the filesystem
+function file_exists() {
+    local filepath="${1:?filepath is missing}"
+
+    if [ -f "${filepath}" ]; then
+        debug "file_exists(${filepath})" "exists"
+        return 0;
+    else
+        debug "file_exists(${filepath})" "does not exists"
+        return 1;
+    fi
+}
+
+# directory_exists() <filepath>
+#
+# tests whether the filepath represents a valid directory
+function directory_exists() {
+    local dir="${1:?directory is missing}"
+
+    if [[ -d "${dir}" ]]; then
+        return 0;
+    else
+        return 1;
+    fi    
+}
+
+# parent_directory() <filepath>
+#
+# splits the filepath by delimiters and then pops off the last
+# one to arrive at the "parent directory"
+# 
+# Note: there is no gaurentee that this is a valid directory
+# on the system (yet)
+function parent_directory() {
+    local -r filepath="${1:?no filepath was passed to split_filepath()}"
+    local -a paths
+    paths=( split_on "$(os_path_delimter)" "${filepath}" )
+    pop paths VOID
+    local -r subdir=$(join_with "$(os_path_delimeter)" "${paths[*]}")
+
+    printf "%s" "${subdir}"
+
+}
+
 # split_filepath <filepath> <ref:array>
 #
 # Splits the filepath by the path delimiter character of the 
 # underlying operating system.
 function split_filepath() {
     local -r filepath="${1:?no filepath was passed to split_filepath()}"
-    local -na arr=$2
+    # shellcheck disable=SC2178
+    local -n __array__=$2
 
-    if starts_with "windows" "$(os)"; then
-        arr=( split_on "\\" "$filepath" )
+    if is_array __array__; then
+        # shellcheck disable=SC2207
+        __array__=( $(split_on "$(os_path_delimiter)" "$filepath") )
     else
-        arr=( split_on "/" "$filepath" )
+        error "split_filepath() expects an array to passed in as $2"
     fi
 }
 
 
+
+function is_fully_qualified_path() {
+    local -r path="${1:?is_fully_qualified_path() did not receive a path!}"
+
+    if starts_with "$(os_path_delimiter)" "$path"; then
+        debug "is_full_qualified_path" "the path '${path}' IS a fully qualified path"
+        return 0
+    else
+        debug "is_full_qualified_path" "the path '${path}' IS NOT a fully qualified path"
+        return 1
+    fi
+}
+
+function rejoin_file_parts() {
+    local -r original_path="${1:?the original filepath was passed to rejoin_file_parts()}"
+    local -nr __parts__=$2
+
+    if ! is_array __parts__; then
+        error "rejoin_file_parts(original_path,parts) expects parts to be reference to a bash array but it was not!"
+    fi
+
+    local result
+
+    if is_fully_qualified_path "$original_path"; then
+        result=""
+        for key in "${!__parts__[@]}"; do
+            result="${result}$(os_path_delimiter)${__parts__[${key}]}"
+        done
+    else
+        result="./${__parts__[0]}"
+        for key in "${!__parts__[@]:1}"; do
+            result="${result}$(os_path_delimiter)${__parts__[${key}]}"
+        done
+    fi
+
+    printf "%s" "${result}"
+}
+
+
+# remove_file_from_filepath() <dirpath>
+#
+# attempts to ensure that the passed in path is a valid
+# directory path (not a file path)
 function remove_file_from_filepath() {
     local -r dirpath="${1:?no dirpath was passed to ensure_directory()}"
     local -a parts
     split_filepath "$dirpath" parts
+    debug "remove_file_from_filepath" "split filepath into ${#parts[@]} parts"
 
     if file_exists "$dirpath"; then
         # we know terminating element is a file
-        local -r file="${parts[@:-1]}"
-        local -r dir=$(replace "$file" "" "$dirpath")
+        local file
+        pop parts file
+        debug "remove_file_from_filepath" "reduced original path of '${dirpath}' by extracting the file '${file}' to make the path $(rejoin_file_parts "$dirpath" parts)"
+        local -r dir=$(rejoin_file_parts "$dirpath" parts)
 
         if directory_exists "${dir}"; then
             debug "remove_file_from_filepath" "removed filename and replaced with just dir: ${dir}"
@@ -49,24 +143,47 @@ function remove_file_from_filepath() {
     else
         # we know the full path is not a file
         if directory_exists "$dirpath"; then
-            debug "remove_file_from_filepath" "no file existed, it was a valid directory: ${dirpath}"
+            debug "remove_file_from_filepath" "no file existed and it was a valid directory: ${dirpath}"
             printf "%s" "$dirpath"
+            return 0
         else
-            local -r last=$(pop parts)
-            if contains ".toml" "${parts[@:-1]}"; then
-                echo "NOT DONE"
+            local last
+            pop parts last
+            if contains ".toml" "${last}" || contains ".txt" "${last}" || contains ".pdf" "${last}" || contains ".json" "${last}"; then
+                debug "remove_file_from_filepath" "removed TOML file, path now $(rejoin_file_parts "$dirpath" parts)"
+                local new_dir
+                new_dir=$(remove "$last" "$dirpath")
+                new_dir=$(strip_trailing "/" "${new_dir}")
+                printf "%s" "${new_dir}"
+                return 0
+            else
+                if [[ "${#parts}" -gt 1 ]] && directory_exists "$(parent_directory)"; then
+                    printf "%s" "$(parent_directory "$dirpath")"
+                    debug "remove_file_from_filepath" "the parent directory above that passed is valid so using that"
+                    return 0
+                else
+                    error "uncertain how to effectively remove a filename to achieve a valid directory path"
+                fi
             fi
         fi
+    fi
+}
 
+
+# ensure_directory() <dirpath>
+function ensure_directory() {
+    local -r dirpath="${1}"
+
+    if is_empty "$dirpath"; then
+        catch_errors
+        error "ensure_directory(dirpath) called with no \$dirpath!"
+        return 12
     fi
 
 
-
-}
-
-function ensure_directory() {
-    local -r dirpath="${1:?no dirpath was passed to ensure_directory()}"
-    local -ra parts=( $(split_on "" "") )
+    # shellcheck disable=SC2207
+    local -a parts
+    split_filepath "$dirpath" parts
 
     if directory_exists "${dirpath}"; then
         debug "ensure_directory" "the directory path '${dirpath}' already existed"
@@ -116,6 +233,49 @@ function update_config() {
 
     else
         error "Attempt to save configuration when no MOXY_CONFIG_FILE is set!"
+    fi
+}
+
+function config_file_exists() {
+    if file_exists "${MOXY_CONFIG_FILE}"; then
+        debug "config_file_exists" "does exist"
+        return 0
+    else
+        debug "config_file_exists" "does NOT exist"
+        return 1
+    fi
+}
+
+
+function make_config_secure() {
+    if has_env "MOXY_CONFIG_FILE"; then
+        if ! chmod 600 "${MOXY_CONFIG_FILE}"; then
+            warn "was unable to set the configuration file's permissions; you may have only readonly access to the file"
+        fi
+    else
+        error "call to make_config_secure() when MOXY_CONFIG_FILE env variable is not set!"
+    fi
+}
+
+
+# config_has() <find>
+function config_has() {
+    local -r find="${1}"
+
+    if is_empty "$find"; then
+        panic "call to config_has(find) with no FIND variable!"
+    fi
+
+    if has_env "MOXY_CONFIG_FILE"; then
+        if file_contains "$MOXY_CONFIG_FILE" "${find}"; then
+            debug "config_has" "config has '${find}'"
+            return 0
+        else
+            debug "config_has" "config does not have '${find}'"
+            return 1
+        fi
+    else
+        panic "call to config_has() without the MOXY_CONFIG_FILE environment variable being set ${MOXY_CONFIG_FILE}!"
     fi
 }
 

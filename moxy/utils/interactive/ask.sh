@@ -91,6 +91,7 @@ function tui() {
 #
 # 
 function ask_radiolist() {
+    # shellcheck disable=SC2178
     local -n data=$1
     local -r title="${data["title"]}"
     local -r backmsg="${data["backmsg"]}"
@@ -125,6 +126,7 @@ function ask_radiolist() {
 #
 # creates a dialog box with a yes/no dialog
 function ask_yes_no() {
+    # shellcheck disable=SC2178
     local -nA data=$1
     local -r title="${data["title"]}"
     local -r backmsg="${data["backmsg"]}"
@@ -202,17 +204,27 @@ function was_cancelled() {
 
 # ask_inputbox {title|height|width|ok|cancel|exit}
 function ask_inputbox() {
+    allow_errors
+    # shellcheck disable=SC2178
     local -n data=$1
+
+    if is_typeof data "empty"; then
+        error "Call to ask_inputbox() received without any parameter configuration passed in!"
+    elif is_not_typeof data "assoc-array"; then
+        error "ask_inputbox() expects an associative array to be passed in for configuration purposes but got '$(typeof data)' instead!"
+    fi
+
     local -r title="${data["title"]}"
     local -r backmsg="${data["backmsg"]}"
     local -r height="${data["height"]}"
     local -r width="${data["width"]}" 
     local -r ok="${data["ok"]}"
     local -r cancel="${data["cancel"]}"
-    local -r on_cancel="${data["on_cancel"]}"
-    local -r exit_msg="${data["exit_msg"]}"
+    local -r on_cancel="${data["on_cancel"]} || echo 'exit'"
+    local -r exit_msg="${data["exit_msg"]}" || "Goodbye"
     
     local -r tool="$(tui)"
+    catch_errors
 
     local buttons
     if [[ "${tool}" == "dialog" ]]; then
@@ -253,21 +265,18 @@ function ask_inputbox() {
 
 # ask_to_continue <continue msg> <exit msg> <y|n> <err>
 function ask_to_continue() {
-    local -r continue_msg="${1:-Ok}"
-    local -r exit_msg="${2:-Exiting...}"
-    local -r def_val="${3:-y}"
-    local -r exit_is_error="${4:-false}"
+    # shellcheck disable=SC2178
+    local -n data=$1
+    local -r continue_msg="${data["continue"}]}"
+    local -r exit_msg="${data["exit_msg"}]}"
+    local -r def_val="${data["def_val"}]}"
 
 
     if [[ "$def_val" == "y" ]]; then 
         read -r -p "Continue? <Y/n> " prompt
         if echo "$prompt" | grep -Eq "^(n|no)$"; then
             log "${exit_msg}"
-            if [[ "${exit_is_error}" == "false" ]]; then
-                exit 0
-            else
-                exit 1
-            fi
+            exit_ask "${exit_msg}"
         else
             log "${continue_msg}"
             log ""

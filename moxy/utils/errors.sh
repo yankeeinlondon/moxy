@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-
+# shellcheck source="./env.sh"
+. "./utils/env.sh"
 # shellcheck source="./logging.sh"
 . "./utils/logging.sh"
 
@@ -21,24 +22,66 @@ export ERR_NOT_PVE_NODE=103
 export ERR_MENU_NOT_OBJECT=120
 export ERR_MENU_INVALID_CHOICES=121
 
+export ERR_INVALID_API_KEY=130
 
-# error <msg> <[code]>
+function returned() {
+    local -ri code="${1:-Function must provide a return code to returned()}"
+    local -r err_msg="${2}"
+    local -A current
+    unshift CALL_STACK current
+
+    if [[ $code -eq 0 ]]; then
+
+        return 0;
+    else
+        log "${BOLD}${RED}Error in ${current["fn"]}() with ID ${current["id"]}:${RESET} ${err_msg}"
+
+        return $code;
+    fi
+}
+
+function called() {
+    local -r fn_name="${1:-Function name was not provided to called()!}"
+    local -r fn_id="${2:-Function ID was not passed in with $$!}"
+    local -A _stack_el=(
+        [fn]="${fn_name}"
+        [id]="${fn_id}"
+    )
+    push CALL_STACK _stack_el
+}
+
+function panic() {
+    local -r msg="${1:-Exiting due to panic!}"
+    local -ri code=${2:-((1))}
+    catch_errors
+
+    log "$$: ${msg}"
+    exit $code
+}
+
+# error <msg>
 #
 # sends an error message to STDERR and if an error code
 # has been included then it will return that error code too
 function error() {
-    local -r possible_code="${2:-error code not-specified}"
+    log "${RED}ERROR →${RESET} ${1}"
+}
 
-    if [[ "$possible_code" == "error code not-specified" ]]; then
-        log "${RED}ERROR ${RESET} ==> ${*}"
+
+function error_path() {
+    local -r path="$1"
+    allow_errors
+
+    if not_empty "$path"; then
+        local -r delimiter=$(os_path_delimiter)
+        local -r start=$(strip_after_last "$delimiter" "$path")
+        local -r end=$(strip_before_last "$delimiter" "$path")
+
+        printf "%s" "${start}/${RED}${end}${RESET}"
     else
-        log "${RED}ERROR [${possible_code}] ${RESET} ==> ${1}"
-        declare code=$(( possible_code ))
-
-        debug "error" "returning with code ${code}"
-
-        return $code
+        printf "%s" "${ITALIC}${DIM}unknown${RESET}"
     fi
+
 }
 
 # error_handler()
@@ -49,7 +92,17 @@ function error_handler() {
     local -r line_number="$1"
     local -r command="$2"
 
-    log "  [${RED}x${RESET}] ERROR in line $line_number [ exit code $exit_code ] while executing command \"${DIM}$command${RESET}\""
+    log "  [${RED}x${RESET}] ERROR [${BOLD}${exit_code}${RESET}] at line ${line_number} while executing command \"${DIM}$command${RESET}\""
+    log ""
+    local -i i
+    i=0
+    for file in "${BASH_SOURCE[@]}"; do
+
+        if ! contains "errors.sh" "$file"; then
+            log "- ${FUNCNAME[$i]}() ${ITALIC}${DIM}at line${RESET} ${BASH_LINENO[$i]} ${ITALIC}${DIM}in${RESET} $(error_path "${file}")"
+        fi
+        i=$(( i + 1 ))
+    done
 }
 
 # catch_errors()
@@ -67,10 +120,9 @@ function catch_errors() {
 # and is typically used to temporarily check on an external state from the shell
 # where an error might be encountered but which will be handled locally
 function allow_errors() {
-    set +e
+    set +Eeuo pipefail
+    trap - ERR
 }
-
-
 
 function error_state_fails() {
     local -r current_state=$-

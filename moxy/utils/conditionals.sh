@@ -38,11 +38,14 @@ function is_array() {
 # Note: this check only works after the variable passed in
 # is actually set and set -u is in effect
 function is_assoc_array() {
+    allow_errors
     local -n __var__=$1
 
     if [[ ${__var__@a} = A ]]; then
+        catch_errors
         return 0; # true
     else
+        catch_errors
         return 1; # false
     fi
 }
@@ -61,14 +64,17 @@ function has_newline() {
 }
 
 function is_keyword() {
+    allow_errors
     local _var=${1:?no parameter passed into is_array}
     local declaration=""
     # shellcheck disable=SC2086
     declaration=$(LC_ALL=C type -t $1)
 
     if [[ "$declaration" == "keyword" ]]; then
+        catch_errors
         return 0
     else
+        catch_errors
         return 1
     fi
 }
@@ -155,13 +161,16 @@ function is_installed() {
 #
 # returns 0/1 based on whether <candidate> is numeric
 function is_numeric() {
+    allow_errors
     local -n __var__=$1
 
     if ! [[ "$__var__" =~ ^[0-9]+$ ]]; then
         debug "is_numeric" "false (${__var__})"
+        catch_errors
         return 1
     else
         debug "is_numeric" "true (${__var__})"
+        catch_errors
         return 0
     fi
 }
@@ -187,6 +196,7 @@ function is_shell_command() {
 # 
 # tests whether <candidate> is an object and returns 0/1
 function is_object() {
+    allow_errors
     local -n candidate=$1
 
     if not_empty "$candidate" && starts_with  "${OBJECT_PREFIX}" "${candidate}" ; then
@@ -197,6 +207,7 @@ function is_object() {
     fi
 
     debug "is_object" "false (${DIM}${candidate}${RESET})"
+    catch_errors
     return 1
 }
 
@@ -231,20 +242,41 @@ function str_eq() {
 }
 
 function is_list() {
+    allow_errors
     local -n __var__=$1
 
-    if not_empty "${__var__}" && starts_with "${LIST_PREFIX}" "${__var__}"; then
-        if not_empty "${__var__}" && ends_with "${LIST_SUFFIX}" "${__var__}"; then
-            debug "is_list" "true"
-            return 0
-        else
-            debug "is_list" "false (prefix matched, suffix did not): \"${LIST_SUFFIX}\""
-            debug "is_list" "${__var__}"
-            return 1
+    if is_empty "$__var__"; then
+        local -r by_val="$1"
+
+        if not_empty "${by_val}" && starts_with "${LIST_PREFIX}" "${by_val}"; then
+            if not_empty "${by_val}" && ends_with "${LIST_SUFFIX}" "${by_val}"; then
+                debug "is_list" "true"
+                catch_errors
+                return 0
+            else
+                debug "is_list" "false (prefix matched, suffix did not): \"${LIST_SUFFIX}\""
+                debug "is_list" "${by_val}"
+                catch_errors
+                return 1
+            fi
+        fi        
+    else
+        if not_empty "${__var__}" && starts_with "${LIST_PREFIX}" "${__var__}"; then
+            if not_empty "${__var__}" && ends_with "${LIST_SUFFIX}" "${__var__}"; then
+                debug "is_list" "true"
+                catch_errors
+                return 0
+            else
+                debug "is_list" "false (prefix matched, suffix did not): \"${LIST_SUFFIX}\""
+                debug "is_list" "${__var__}"
+                catch_errors
+                return 1
+            fi
         fi
     fi
 
     debug "is_list" "false"
+    catch_errors
     return 1
 }
 
@@ -253,6 +285,11 @@ function is_list() {
 function starts_with() {
     local -r look_for="${1:?No look-for string provided to starts_with}"
     local -r content="${2:-}"
+
+    if is_empty "${content}"; then
+        debug "starts_with" "starts_with(${look_for}, "") was passed empty content so will always return false"
+        return 1;
+    fi
 
     if [[ "${content}" == "${content#"$look_for"}" ]]; then
         debug "starts_with" "false (\"${DIM}${look_for}${RESET}\")"
@@ -266,8 +303,13 @@ function starts_with() {
 # ends_with <look-for> <content>
 function ends_with() {
     local -r look_for="${1:?No look-for string provided to ends_with}"
-    local -r content="${2:?No content string provided to ends_with}"
+    local -r content="${2}"
     local -r no_suffix="${content%"${look_for}"}"
+
+    if is_empty "${content}"; then
+        debug "ends_with" "ends_with(${look_for}, "") was passed empty content so will always return false"
+        return 1;
+    fi
 
     if [[ "${content}" == "${no_suffix}" ]]; then
         debug "ends_with" "false (\"${DIM}${look_for}${RESET}\")"
@@ -290,24 +332,78 @@ function is_function() {
     else
         return 1
     fi
-
 }
 
-# contains <content> <matches> 
+# contains <find> <content>
 # 
 # given the "content" string, all other parameters passed in
 # will be looked for in this content.
 function contains() {
-    local -r content="${1:?content expression not passed to contains()}"
-    local -ra list=( "${@:2}" )
-    
-    for item in "${list[@]}"; do
-        if [[ "${content}" =~ ${item} ]]; then
-            return 0 # successful match
+    local -r find="${1}"
+    local -r content="${2}"
+
+    if is_empty "$find"; then
+        error "contains("", ${content}) function did not recieve a FIND string! This is an invalid call!" 1
+    fi
+
+    if is_empty "$content"; then
+        debug "contains" "contains(${find},"") received empty content so always returns false"
+        return 1;
+    fi
+
+    if [[ "${content}" =~ ${find} ]]; then
+        debug "contains" "found: ${find}"
+        return 0 # successful match
+    fi
+
+    debug "contains" "not found: ${find}"
+    return 1
+}
+
+function has_characters() {
+    local -r char_str="${1:has_characters() did not recieve a CHARS string!}"
+    local -r content="${2:?content expression not passed to has_characters()}"
+    local -ra chars=$(echo "${char_str}" | grep -o .)
+
+    local found="false"
+
+    for key in "${!chars[@]}"; do
+        if [[ "${chars[${key}]}" =~ ${find} ]]; then
+            found="true"
+            break
         fi
     done
 
-    return 1
+    if [[ "$found" == "true" ]]; then
+        debug "has_characters" "does have some of these characters: '${char_str}'"
+        return 0
+    else
+        debug "has_characters" "does NOT have any of these characters: '${char_str}'"
+        return 1
+    fi
+}
+
+function avoids_characters() {
+    local -r char_str="${1:has_characters() did not recieve a CHARS string!}"
+    local -r content="${2:?content expression not passed to has_characters()}"
+    local -ra chars=$(echo "${char_str}" | grep -o .)
+
+    local found="true"
+
+    for key in "${!chars[@]}"; do
+        if [[ "${chars[${key}]}" =~ ${find} ]]; then
+            found="false"
+            break
+        fi
+    done
+
+    if [[ "$found" == "true" ]]; then
+        debug "avoids_characters" "failed to avoid some of these characters: '${char_str}'"
+        return 1
+    else
+        debug "avoids_characters" "avoids having any of these characters: '${char_str}'"
+        return 0
+    fi
 }
 
 function has_parameters() {
@@ -322,39 +418,14 @@ function has_parameters() {
     fi
 }
 
-# file_exists <filepath>
-#
-# tests whether a given filepath exists in the filesystem
-function file_exists() {
-    local filepath="${1:?filepath is missing}"
-
-    if [ -f "${filepath}" ]; then
-        debug "file_exists(${filepath})" "exists"
-        return 0;
-    else
-        debug "file_exists(${filepath})" "does not exists"
-        return 1;
-    fi
-}
-
-
-function directory_exists() {
-    local dir="${1:?directory is missing}"
-
-    if [[ -d "${dir}" ]]; then
-        return 0;
-    else
-        return 1;
-    fi    
-}
-
 # has_env <variable name>
 #
 # checks whether a given ENV variable name is defined
 function has_env() {
     local -r var="${1:?has_env() called but no variable name passed in!}"
+    local -r val=$(get_env "${var}")
 
-    if [[ -z "${var}" ]]; then
+    if [[ -z "${val}" ]]; then
         return 0
     else
         return 1
@@ -363,28 +434,36 @@ function has_env() {
 
 
 
-# is_kv_pair() <test>
+# is_kv_pair() <test | ref:test>
 #
-# tests whether passed in <test> is considered a "KV Pair"
+# tests whether passed in <test> is considered a "KV Pair" or a
+# reference to a KV Pair
 function is_kv_pair() {
-    # local -r test="$1"
-    local -n test_by_ref=$1 2>/dev/null
+    allow_errors
+    local is_ref_val
+    is_ref_val="true"
+    local -n test_by_ref=$1 2>/dev/null || is_ref_val="false";
+    local -r test_by_val="$1"
 
-    # if not_empty "${test}" && starts_with "${KV_PREFIX}" "${test}"; then
-    #     if ends_with "${KV_SUFFIX}" "${test}"; then
-    #         debug "is_kv_pair" "true (\"${DIM}${test}${RESET}\")"
-    #         return 0
-    #     fi
-    # fi
 
-    if not_empty "${test_by_ref}" && starts_with "${KV_PREFIX}" "${test_by_ref}"; then
-        if ends_with "${KV_SUFFIX}" "${test_by_ref}"; then
-            debug "is_kv_pair" "true (\"${DIM}${test_by_ref}${RESET}\")"
-            return 0
+    if [[ "${is_ref_val}" == "true" ]]; then
+        if not_empty "${test_by_ref}" && starts_with "${KV_PREFIX}" "${test_by_ref}"; then
+            if not_empty "${test_by_ref}" && ends_with "${KV_SUFFIX}" "${test_by_ref}"; then
+                debug "is_kv_pair" "true (\"${DIM}${test_by_ref}${RESET}\")"
+                return 0
+            fi
+        fi
+    else
+        if not_empty "${test_by_val}" && starts_with "${KV_PREFIX}" "${test_by_val}"; then
+            if not_empty "${test_by_val}" && ends_with "${KV_SUFFIX}" "${test_by_val}"; then
+                debug "is_kv_pair" "true (\"${DIM}${test_by_val}${RESET}\")"
+                return 0
+            fi
         fi
     fi
 
-    debug "is_kv_pair" "false (val: '${1}', ref: '${test_by_ref}'\")"
+    debug "is_kv_pair" "false (is_ref: ${is_ref_val}, val: '${test_by_val}', ref: '${test_by_ref}'\")"
+    catch_errors
     return 1
 }
 
