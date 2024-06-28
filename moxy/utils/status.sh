@@ -54,14 +54,74 @@ function lxc_status() {
         fi
     done
 
+    local -A tag_color=()
+    # shellcheck disable=SC2034
+    local -a tag_pallette=( "${BG_PALLETTE[@]}" )
+
     # Sort by VMID and display the results
+    log ""
+    log "🏃${BOLD} Running Containers${RESET}"
+    log "-----------------------------------------------------"
     for vmid in $(echo "${!container_data[@]}" | tr ' ' '\n' | sort -n); do
         eval "declare -A data=${container_data[$vmid]}"
-        echo "VMID: ${data[vmid]}"
-        for key in "${!data[@]}"; do
-            echo "  $key: ${data[$key]}"
-        done
-        echo ""
+        if [[ "${data[status]}" == "running" ]]; then
+            # shellcheck disable=SC2207
+            local -a tags=( $(split_on ";" "${data["tags"]}") )
+            local display_tags=""
+            
+            for t in "${tags[@]}"; do
+                local color
+                allow_errors
+                if not_empty "${tag_color["$t"]}"; then
+                    color="${tag_color["$t"]}"
+                else
+                    if ! unshift tag_pallette color; then
+                        tag_pallette=( "${BG_PALLETTE[@]}" )
+                        unshift tag_pallette color
+                    fi
+                    tag_color["$t"]="$color"
+                fi
+                catch_errors
+                display_tags="${display_tags} ${color}${t}${RESET}"
+            done
+
+            log "- ${data["name"]} [${DIM}${data["vmid"]}${RESET}]: ${ITALIC}${DIM}running on ${RESET}${data["node"]}; ${display_tags}"; 
+        fi
+    done
+
+    log ""
+    log "✋${BOLD} Stopped Containers${RESET}"
+    log "-----------------------------------------------------"
+    for vmid in $(echo "${!container_data[@]}" | tr ' ' '\n' | sort -n); do
+        eval "declare -A data=${container_data[$vmid]}"
+        if [[ "${data[status]}" == "stopped" ]]; then
+            # shellcheck disable=SC2207
+            local -a tags=( $(split_on ";" "${data["tags"]}") )
+            local display_tags=""
+            
+            for t in "${tags[@]}"; do
+                local color
+                allow_errors
+                if not_empty "${tag_color["$t"]}"; then
+                    color="${tag_color["$t"]}"
+                else
+                    if ! unshift tag_pallette color; then
+                        tag_pallette=( "${BG_PALLETTE[@]}" )
+                        unshift tag_pallette color
+                    fi
+                    tag_color["$t"]="$color"
+                fi
+                catch_errors
+                display_tags="${display_tags} ${color}${t}${RESET}"
+            done
+
+            local template_icon=""
+            if [[ "${data["template"]}" == "1" ]]; then
+                template_icon="📄 "
+            fi
+
+            log "- ${template_icon}${data["name"]} [${DIM}${data["vmid"]}${RESET}]: ${ITALIC}${DIM}residing on ${RESET}${data["node"]}; ${display_tags}"; 
+        fi
     done
 }
 
@@ -78,7 +138,7 @@ function node_status() {
 
 
 function moxy_status() {
-    local -r focus="$1"
+    local -r focus="${1:-}"
 
     case $(lc "$focus") in
         nodes) node_status;;

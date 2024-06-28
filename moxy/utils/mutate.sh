@@ -884,9 +884,7 @@ function unshift() {
     # shellcheck disable=SC2178
     local -n __array__=$1
     local -n __value_or_key__=$2
-    local -n __value_of_obj__=$3 2>/dev/null
-
-    catch_errors
+    local -n __value_of_obj__=$3:- 2>/dev/null
 
     if [ "$$" -ne "$BASHPID" ]; then
         if [[ "$$" -ne "$APP_ID" ]]; then
@@ -899,6 +897,7 @@ function unshift() {
         if [[ ${#__array__} -eq 0 ]]; then
             debug "pop" "pop() called on an empty array"
             __value_or_key__=""
+            catch_errors
             return 1
         fi
 
@@ -910,6 +909,7 @@ function unshift() {
         debug "pop" "popped off ${BOLD}${__array__[0]}${RESET} from numeric array; leaving ${count[*]} elements"
         unset "__array__[0]"
         __array__=("${__array__[@]}")
+        catch_errors
 
     elif is_assoc_array __array__; then
         # ASSOCIATIVE ARRAY
@@ -919,6 +919,7 @@ function unshift() {
             debug "pop" "pop() called on an empty associative array"
             __value_or_key__=""
             __value_of_obj3ect__=""
+            catch_errors
             return 1
         fi
 
@@ -929,6 +930,7 @@ function unshift() {
 
         unset "__array__[${first_key}]"
         __array__=( "${__array__[@]}" )
+        catch_errors
     else 
         error "Unexpected type passed into pop()"
     fi
