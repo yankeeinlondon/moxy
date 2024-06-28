@@ -147,8 +147,27 @@ function storage_status() {
     log "-----------------------------------------------------"
     for storage in $(echo "${!storage_data[@]}" | tr ' ' '\n' | sort -n); do
         eval "declare -A data=${storage_data[$storage]}"
+        local icons=""
+        if contains "images" "${data["content"]}"; then
+            icons="${icons} 🥏"
+        fi
+        if contains "backup" "${data["content"]}"; then
+            icons="${icons} ⏺️ "
+        fi
+        if contains "snippets" "${data["content"]}"; then
+            icons="${icons} ✄"
+        fi
+        if contains "rootdir" "${data["content"]}"; then
+            icons="${icons} ⋋"
+        fi
+        if contains "iso" "${data["content"]}"; then
+            icons="${icons} 📀"
+        fi
+        if contains "pbs" "${data["content"]}"; then
+            icons="${icons} 👆"
+        fi
         if [[ "${data[shared]}" == "1" ]]; then
-            log "- ${data["storage"]}${DIM}@${data["server"]}${RESET} - ${BOLD}${BLUE}${data["type"]}${RESET} - "
+            log "- ${data["storage"]}${DIM}@${data["server"]}${RESET} - ${BOLD}${BLUE}${data["type"]}${RESET} -${icons} - ${DIM}${data["path"]:-}${RESET}"
 
         fi
     done
