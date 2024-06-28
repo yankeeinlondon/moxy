@@ -14,23 +14,7 @@ function status_help() {
     log ""
 }
 
-function lxc_status_old() {
-    local -A data
-    local -r json="$(pve_lxc_containers)"
 
-    log "${json}"
-
-    while IFS= read -r -d '' key && IFS= read -r -d '' value; do
-        # shellcheck disable=SC2034
-        data[$key]=$value
-    done < <(jq -j 'to_entries[] | (.key, "\u0000", .value, "\u0000")' <<<"$json")
-    log "${GREEN}◦${RESET} [${data["vmid"]}] ${data["name"]} on ${data["node"]} is ${data["status"]}"
-
-    # for key in "${!data[@]}"; do
-    #     log "$key => ${data[$key]}"
-    # done
-
-}
 
 function lxc_status() {
     local -A data
@@ -136,12 +120,47 @@ function node_status() {
     echo "not ready"
 }
 
+function storage_status() {
+    local -A data
+    local -r json="$(pve_storage)"
+    local -a strorage_devices
+
+    # Parse JSON and convert it into an array of associative arrays
+    mapfile -t strorage_devices < <(jq -c '.[]' <<<"$json")
+
+    declare -A storage_data
+    for device in "${strorage_devices[@]}"; do
+        declare -A data
+        while IFS= read -r -d '' key && IFS= read -r -d '' value; do
+            data["$key"]="$value"
+        done < <(jq -j 'to_entries[] | (.key, "\u0000", .value, "\u0000")' <<<"$device")
+
+        if [[ -n "${data[storage]:-}" ]]; then
+            storage_data["${data[storage]}"]=$(declare -p data | sed 's/^declare -A data=//')
+        else
+            echo "Warning: 'storage' not found in container data: $container" >&2
+        fi
+    done
+
+    log ""
+    log "🐘${BOLD} Shared Storage${RESET}"
+    log "-----------------------------------------------------"
+    for storage in $(echo "${!storage_data[@]}" | tr ' ' '\n' | sort -n); do
+        eval "declare -A data=${storage_data[$storage]}"
+        if [[ "${data[shared]}" == "1" ]]; then
+            log "- ${data["storage"]}${DIM}@${data["server"]}${RESET} - ${BOLD}${BLUE}${data["type"]}${RESET} - "
+
+        fi
+    done
+}
+
 
 function moxy_status() {
     local -r focus="${1:-}"
 
     case $(lc "$focus") in
         nodes) node_status;;
+        storage) storage_status;;
         lxc) lxc_status;;
         vm) vm_status;;
         cluster) cluster_status;;

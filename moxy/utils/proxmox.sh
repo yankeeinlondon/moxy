@@ -288,20 +288,18 @@ function pve_vm_containers() {
         resources="$(get_pve "${path}" "${filter}")"
     fi
 
-    printf "%s" "$(list "${resources}")"
+    printf "%s" "${resources}"
 }
 
 function pve_storage() {
-    local -r path="/cluster/resources"
-    local -r filter=".data.[] | select(.type == \"storage\")"
     local resources
     if is_pve_node; then
-        resources="$(get_pvesh "${path}" "${filter}")"
+        resources="$(get_pvesh "/storage" '. | map(.)')"
     else 
-        resources="$(get_pve "${path}" "${filter}")"
+        resources="$(get_pve "/storage" '.data | map(.)')"
     fi
 
-    printf "%s" "$(list "${resources}")"
+    printf "%s" "${resources}"
 }
 
 function pve_sdn() {
