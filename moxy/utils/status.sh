@@ -152,6 +152,17 @@ function storage_status() {
 
         fi
     done
+
+    log ""
+    log "🛖${BOLD} Local Storage${RESET}"
+    log "-----------------------------------------------------"
+    for storage in $(echo "${!storage_data[@]}" | tr ' ' '\n' | sort -n); do
+        eval "declare -A data=${storage_data[$storage]}"
+        if [[ "${data[shared]}" != "1" ]]; then
+            log "- ${data["storage"]}${DIM}@${data["server"]}${RESET} - ${BOLD}${BLUE}${data["type"]}${RESET} - "
+
+        fi
+    done
 }
 
 
