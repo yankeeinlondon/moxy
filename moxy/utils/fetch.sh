@@ -99,3 +99,34 @@ function pve_auth_header() {
     fi
 }
 
+
+# json_list_data <ref:json> <ref:data> <ref: query>
+function json_list_data() {
+    local -n __json=$1
+    local -n __data=$2
+    local -n __query=$3 # sorting, filtering, etc.
+    local -A record
+
+    if is_not_typeof __json "string"; then
+        error "Invalid JSON passed into json_list_data(); expected a reference to string data but instead got $(typeof __json)"
+    fi
+
+    if is_not_typeof __data "array"; then
+        error "Invalid data structure passed into json_list_data() for data array. Expected an array got $(typeof data)"
+    else
+        # start with empty dataset
+        __data=()
+    fi
+
+    local json_array
+    mapfile -t json_array < <(jq -c '.[]' <<<"$__json")
+
+    for json_obj in "${json_array[@]}"; do
+        record=()
+        while IFS= read -r -d '' key && IFS= read -r -d '' value; do
+            record["$key"]="$value"
+        done < <(jq -j 'to_entries[] | (.key, "\u0000", .value, "\u0000")' <<<"$json_obj")
+
+        __data+=("$(declare -p record | sed 's/^declare -A record=//')")
+    done
+}

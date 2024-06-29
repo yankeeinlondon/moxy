@@ -99,12 +99,12 @@ function ask_radiolist() {
     fi
 
     local -r title="${data["title"]}"
-    local -r backmsg="${data["backmsg"]}:-Moxy"
+    local -r backmsg="${data["backmsg"]:-Moxy}"
     local -r height="${data["height"]:-23}"
     local -r width="${data["width"]:-60}" 
     local -r radio_height="${data["radio_height"]:-12}"
     local -ra choices="${data["choices"]}"
-    local -r exit_msg="${data["exit_msg"]}:-Goodbye"
+    local -r exit_msg="${data["exit_msg"]:-Goodbye}"
     local -ra params=(
         "--backtitle \"${backmsg}\""
         "--radiolist \"${title}\" ${height} ${width} ${radio_height}"

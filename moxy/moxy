@@ -6,9 +6,6 @@
 
 catch_errors
 
-test_if_ready_to_start
-
-
 # moxy
 #
 # main line program which 
@@ -29,4 +26,5 @@ function moxy() {
 
 }
 
+test_if_ready_to_start
 moxy "$@"

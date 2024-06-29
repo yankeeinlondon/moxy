@@ -23,6 +23,9 @@
 # shellcheck source="./file.sh"
 . "./utils/file.sh"
 
+
+IS_FIRST_TIME=0
+
 function ensure_curl() {
     if ! has_command "curl"; then
         error "- to use moxy on a non-pve node you'll need to have 'curl' installed"
@@ -103,6 +106,8 @@ function  ensure_dependant_programs() {
     ensure_jq
 }
 
+# makes sure the directory where the config file is supposed to be
+# is created
 function ensure_config_dir() {
     if ! config_file_exists; then
         if has_env "MOXY_CONFIG_FILE"; then
@@ -110,6 +115,22 @@ function ensure_config_dir() {
             ensure_directory "${config_dir}"
         else
             error "no MOXY_CONFIG_FILE env variable is set!" 1
+        fi
+    fi
+}
+
+function ensure_config_file() {
+    if has_env "MOXY_CONFIG_FILE"; then
+
+        if ! file_exists "$MOXY_CONFIG_FILE"; then
+            if touch "${MOXY_CONFIG_FILE}"; then
+                debug "ensure_config_file" "created config file at ${MOXY_CONFIG_FILE}"
+                return 0
+            else
+                panic "Attempt to create configuration file at ${BLUE}${MOXY_CONFIG_FILE}${RESET} failed! Please create this file and restart moxy"
+            fi
+        else
+            panic "call to ensure_config_file() prior to MOXY_CONFIG_FILE being set!"
         fi
     fi
 }
@@ -184,6 +205,103 @@ function configure_non_pve_node() {
     fi
 }
 
+function specify_config_dir() {
+    if initialize_config; then
+        # config file exists at current ENV state
+        # so nothing to do
+        return 0
+    else
+        if has_env "MOXY_CONFIG_FILE"; then
+            # ENV set but no file
+            log "It appears that you have set the ${BOLD}MOXY_CONFIG_FILE${RESET}"
+            log "but that this file doesn't exist yet."
+            log ""
+            log "Should we create it for you and help you get it configured with a"
+            log "base configuration (${DIM}${MOXY_CONFIG_FILE}${RESET})?"
+            if ! text_confirm "Create config file" "y"; then
+                log ""
+                log "Ok, no problem ... see you soon"
+                log ""
+
+                exit 0
+            else
+                # set configuration to ENV
+                ensure_config_dir
+                ensure_config_file
+            fi
+        else
+            # no ENV and no known config file location
+            local -r title="Moxy Config File\n\nMoxy needs to be able to save it's configuration state to the file system. There are two standard locations which you can choose from below.\n\n- the ~/.config/moxy/config.toml option resides in a location which is often shared between computers\n\n- whereas the ~/.moxy location can keep the config isolated to a single machine\n\nUltimately the final option is to set the MOXY_CONFIG_FILE env variable to another location. If you want to do that now then choose 'Exit' button and run moxy again\n$(nbsp)"
+            local -ra location_choices=( 
+                '.config' "$(space_to_nbsp "${HOME}/.config/moxy/config.toml")" ON
+                'Home' "$(space_to_nbsp "${HOME}/.moxy")" OFF
+            )
+            local -rA _where=(
+                [title]="${title}"
+                [backmsg]="Moxy Configuration"
+                [choices]="${location_choices[@]}"
+                [height]=26
+                [ok]="Set Location"
+                [cancel]="Exit"
+            )
+            local -r location="$(ask_radiolist _where)"
+
+            if is_empty "$location"; then
+                clear;
+                log ""
+                log "- set the MOXY_CONFIG_FILE env variable and run Moxy again"
+                log ""
+                exit 0
+            else
+                if [[ "$location" == ".config"  ]]; then 
+                    set_env "MOXY_CONFIG_FILE" "${HOME}/.config/moxy/config.toml"
+                else
+                    set_env "MOXY_CONFIG_FILE" "${HOME}/.moxy"
+                fi
+                ensure_config_dir
+                ensure_config_file
+            fi
+        fi
+    fi
+}
+
+function set_other_defaults() {
+    if configuration_missing "DEFAULT_LXC_DISK"; then
+        update_config "DEFAULT_LXC_DISK" "1024"
+    fi
+    if configuration_missing "DEFAULT_VM_DISK"; then
+        update_config "DEFAULT_VM_DISK" "8192"
+    fi
+
+    if configuration_missing "DEFAULT_LXC_RAM"; then
+        update_config "DEFAULT_LXC_RAM" "1024"
+    fi
+    if configuration_missing "DEFAULT_VM_RAM"; then
+        update_config "DEFAULT_VM_RAM" "2048"
+    fi
+
+    if configuration_missing "DEFAULT_LXC_CORES"; then
+        update_config "DEFAULT_LXC_CORES" "1"
+    fi
+    if configuration_missing "DEFAULT_VM_CORES"; then
+        update_config "DEFAULT_VM_CORES" "1"
+    fi
+
+    if configuration_missing "DEFAULT_VLAN"; then
+        update_config "DEFAULT_VLAN" "none"
+    fi
+    if configuration_missing "DEFAULT_DISABLE_IP6"; then
+        update_config "DEFAULT_DISABLE_IP6" "false"
+    fi
+    if configuration_missing "DEFAULT_BRIDGE"; then
+        update_config "DEFAULT_BRIDGE" "vmbr0"
+    fi
+
+    if configuration_missing "PREFER_NALA_OVER_APT"; then
+        update_config "PREFER_NALA_OVER_APT" "true"
+    fi
+}
+
 function configure_preferences() {
     if ! file_contains "${MOXY_CONFIG_FILE}" "DEFAULT_DISTRO"; then
         preferred_distro
@@ -196,20 +314,31 @@ function configure_preferences() {
     if ! file_contains "${MOXY_CONFIG_FILE}" "DEFAULT_SSH"; then
         ssh_access
     fi
+
+    set_other_defaults
 }
 
 function ensure_proper_configuration() {
     # ALL REQUIRED PROGRAMS INSTALLED; NOW CHECK CONFIG
-
-    ensure_config_dir
+    specify_config_dir
     configure_non_pve_node
     pve_version_check
     configure_preferences
 }
 
-function test_if_ready_to_start() {
-    ensure_dependant_programs
-    ensure_proper_configuration
+function is_first_time() {
+    if initialize_config; then
+        return 1
+    else
+        return 0
+    fi
+}
 
-    make_config_secure
+function test_if_ready_to_start() {
+    if is_first_time; then
+        ensure_dependant_programs
+        ensure_proper_configuration
+
+        make_config_secure
+    fi
 }

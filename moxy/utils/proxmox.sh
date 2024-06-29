@@ -318,21 +318,91 @@ function pve_sdn() {
 function pve_nodes() {
     local nodes
     if is_pve_node; then
-        nodes=$(get_pvesh "/nodes" ".data")
+        nodes=$(get_pvesh "/nodes" '. | map(.)')
     else
-        nodes="$(get_pve "/nodes" ".data")"
+        nodes=$(get_pve "/nodes" '. | map(.)')
     fi
 
-    printf "%s" "$(list "${nodes}")"
+    printf "%s" "${nodes}"
+}
+
+function pve_cluster_status() {
+    local cluster
+    if is_pve_node; then
+        cluster=$(get_pvesh "/cluster/status" '.data | map(.)')
+    else
+        cluster=$(get_pve "/cluster/status" '. | map(.)')
+    fi
+
+    printf "%s" "${cluster}"
+}
+
+function pve_cluster_replication() {
+local cluster
+    if is_pve_node; then
+        cluster=$(get_pvesh "/cluster/replication" '.data | map(.)')
+    else
+        cluster=$(get_pve "/cluster/replication" '. | map(.)')
+    fi
+
+    printf "%s" "${cluster}"
+}
+
+function pve_cluster_ha_status() {
+local cluster
+    if is_pve_node; then
+        cluster=$(get_pvesh "/cluster/ha/status/current" '.data | map(.)')
+    else
+        cluster=$(get_pve "/cluster/ha/status/current" '. | map(.)')
+    fi
+
+    printf "%s" "${cluster}"
+}
+
+function pve_cluster_ha_manager() {
+local cluster
+    if is_pve_node; then
+        cluster=$(get_pvesh "/cluster/ha/status/manager_status" '.data | map(.)')
+    else
+        cluster=$(get_pve "/cluster/ha/status/manager_status" '. | map(.)')
+    fi
+
+    printf "%s" "${cluster}"
 }
 
 function pve_node_config() {
     local nodes
     if is_pve_node; then
-        nodes=$(get_pvesh "/cluster/config/nodes" ".data")
+        nodes=$(get_pvesh "/cluster/config/nodes" '.data | map(.)')
     else
-        nodes="$(get_pve "/cluster/config/nodes" ".data")"
+        nodes=$(get_pve "/cluster/config/nodes" '. | map(.)')
     fi
 
-    printf "%s" "$(list "${nodes}")"
+    printf "%s" "${nodes}"
+}
+
+# pve_node_dns() <node>
+function pve_node_dns() {
+    local -r node="1:?No node name was passed to pve_node_dns()!"
+    local resp
+    if is_pve_node; then
+        resp=$(get_pvesh "/nodes/${node}/dns" '.data | map(.)')
+    else
+        resp=$(get_pve "/nodes/${node}/dns" '. | map(.)')
+    fi
+
+    printf "%s" "${resp}"
+}
+
+# pve_node_disks() <node>
+function pve_node_disks() {
+    local -r node="1:?No node name was passed to pve_node_disks()!"
+    local resp
+    if is_pve_node; then
+        resp=$(get_pvesh "/nodes/${node}/disks/list" '.data | map(.)')
+    else
+        resp=$(get_pve "/nodes/${node}/disks/list" '. | map(.)')
+    fi
+
+    printf "%s" "${resp}"
 }

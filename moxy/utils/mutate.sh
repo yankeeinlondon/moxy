@@ -608,7 +608,23 @@ function set_value() {
     done
 
     echo "${new_obj}"
+}
 
+
+function set_env() {
+    local -r var="${1}"
+    local -r val="${2}"
+
+    if is_empty "$var"; then
+        panic "set_env(var,val) called without VAR!"
+    fi
+
+    local -r setter=$(printf "\n%s\n" "${var}=${val}")
+
+    eval "$setter"
+
+    # source <<<"${setter}"
+    debug "set_env" "set ENV variable '${var}' to '${val}'"
 }
 
 
@@ -797,8 +813,6 @@ function true_false() {
         echo "boolean(${evaluate})"
     fi
 }
-
-
 
 # pop() <ref:array> <ref:value-or-key> [<ref:value-of-obj>]
 #

@@ -3,9 +3,6 @@
 # ENV variable definitions
 
 
-export MOXY_CONFIG_FILE="${HOME}/.config/moxy/config.toml"
-
-
 export CANCELLED="CANCELLED"
 # APP_ID
 # 

@@ -6,6 +6,7 @@
 # shellcheck source="./conditionals.sh"
 . "./utils/conditionals.sh"
 
+export ERR_CONFIG_FILE_MISSING=25
 export ERR_UNKNOWN_CONTAINER_TYPE=5
 export ERR_INVALID_DEREF_KEY=10
 export ERR_UNKNOWN_COMMAND=50
@@ -78,11 +79,10 @@ function error_path() {
 function panic() {
     local -r msg="${1:?no message passed to error()!}"
     local -ri code=$(( "${2:-1}" ))
-    local -r fn="${3:-${FUNCNAME[1]}}"
+    local -r fn="${3:-${FUNCNAME[1]}}" || echo "unknown"
 
     log "\n  [${RED}x${RESET}] ${BOLD}ERROR ${DIM}${RED}$code${RESET}${BOLD} →${RESET} ${msg}" 
     log ""
-
     for i in "${!BASH_SOURCE[@]}"; do
         if ! contains "errors.sh" "${BASH_SOURCE[$i]}"; then
             log "    - ${FUNCNAME[$i]}() ${ITALIC}${DIM}at line${RESET} ${BASH_LINENO[$i-1]} ${ITALIC}${DIM}in${RESET} $(error_path "${BASH_SOURCE[$i]}")"
@@ -119,8 +119,8 @@ function error_handler() {
     log ""
 
     for i in "${!BASH_SOURCE[@]}"; do
-        if ! contains "errors.sh" "${BASH_SOURCE[$i]}"; then
-            log "    - ${FUNCNAME[$i]}() ${ITALIC}${DIM}at line${RESET} ${BASH_LINENO[$i-1]} ${ITALIC}${DIM}in${RESET} $(error_path "${BASH_SOURCE[$i]}")"
+        if ! contains "errors.sh" "${BASH_SOURCE[$i]:-unknown}"; then
+            log "    - ${FUNCNAME[$i]:-unknown}() ${ITALIC}${DIM}at line${RESET} ${BASH_LINENO[$i-1]:-unknown} ${ITALIC}${DIM}in${RESET} $(error_path "${BASH_SOURCE[$i]:-unknown}")"
         fi
     done
     log ""

@@ -13,6 +13,62 @@
 # shellcheck source="./mutate.sh"
 . "./utils/mutate.sh"
 
+# initialize_config()
+#
+# Dynamically determines which configuration file
+# to use as a default. This should be called on
+# application start but then $MOXY_CONFIG_FILE
+# will be the reference source.
+#
+# Possible locations are (in order of precendence):
+#  - whereever $MOXY_CONFIG_FILE is pointing
+#  - "${HOME}/.moxy"
+#  - "${HOME}/.config/moxy/config.toml"
+# 
+# Note:
+#  - if $MOXY_CONFIG_FILE is set but the file isn't there,
+# then calling this function will return an error code
+#  - if $MOXY_CONFIG_FILE is not set but it is found in
+# the known locations then it will be set for the remainder
+# of MOXY's execution.
+function initialize_config() {
+    if has_env "MOXY_CONFIG_FILE"; then
+        if file_exists "${MOXY_CONFIG_FILE}"; then
+            debug "initialize_config" "ENV was set, file was found: ${MOXY_CONFIG_FILE}"
+            return 0
+        else
+            debug "initialize_config" "ENV was set, file was NOT found: ${MOXY_CONFIG_FILE}"
+            error "The MOXY_CONFIG_FILE environment variable was set but the file doesn't exist" ${ERR_CONFIG_FILE_MISSING}
+        fi
+    else
+        if file_exists "${HOME}/.moxy"; then
+            set_env "MOXY_CONFIG_FILE" "${HOME}/.moxy"
+            debug "initialize_config" "ENV not set but file was found: ${MOXY_CONFIG_FILE}"
+
+            return 0
+        elif file_exists "${HOME}/.config/moxy/config.toml"; then
+            set_env "MOXY_CONFIG_FILE" "${HOME}/.config/moxy/config.toml"
+            debug "initialize_config" "ENV not set but file was found: ${MOXY_CONFIG_FILE}"
+
+            return 0
+        else
+            debug "initialize_config" "ENV not set nor was file was found"
+
+            return 1
+        fi
+    fi
+}
+
+function config_file_exists() {
+    if file_exists "${MOXY_CONFIG_FILE}"; then
+        debug "config_file_exists" "does exist"
+        return 0
+    else
+        debug "config_file_exists" "does NOT exist"
+        return 1
+    fi
+}
+
 # file_exists <filepath>
 #
 # tests whether a given filepath exists in the filesystem
@@ -32,7 +88,7 @@ function file_exists() {
 #
 # tests whether the filepath represents a valid directory
 function directory_exists() {
-    local dir="${1:?directory is missing}"
+    local dir="${1:?no filepath passed to directory_exists!}"
 
     if [[ -d "${dir}" ]]; then
         return 0;
@@ -55,7 +111,6 @@ function parent_directory() {
     local -r subdir=$(join_with "$(os_path_delimeter)" "${paths[*]}")
 
     printf "%s" "${subdir}"
-
 }
 
 # split_filepath <filepath> <ref:array>
@@ -257,17 +312,6 @@ function update_config() {
     fi
 }
 
-function config_file_exists() {
-    if file_exists "${MOXY_CONFIG_FILE}"; then
-        debug "config_file_exists" "does exist"
-        return 0
-    else
-        debug "config_file_exists" "does NOT exist"
-        return 1
-    fi
-}
-
-
 function make_config_secure() {
     if has_env "MOXY_CONFIG_FILE"; then
         if ! chmod 600 "${MOXY_CONFIG_FILE}"; then
@@ -280,6 +324,9 @@ function make_config_secure() {
 
 
 # config_has() <find>
+#
+# boolean flag returned on whether a given piece of text has been found in the
+# configuration file for Moxy
 function config_has() {
     local -r find="${1}"
 
@@ -296,10 +343,43 @@ function config_has() {
             return 1
         fi
     else
-        panic "call to config_has() without the MOXY_CONFIG_FILE environment variable being set ${MOXY_CONFIG_FILE}!"
+        panic "call to config_has() without the MOXY_CONFIG_FILE environment variable being set!"
     fi
 }
 
+# configuration_missing <key>
+#
+# boolean flag which indicates whether the <key> passed in is present
+# in the configuration in the explicit form of ^KEY=...
+function configuration_missing() {
+    local -r key="${1}"
+
+    if is_empty "${key}"; then
+        panic "call to configuration_missing(key) was called with no KEY!"
+    fi
+
+    if config_file_exists; then
+
+        if not_empty "$(find_key_in_file "$MOXY_CONFIG_FILE" "${key}")"; then
+            return 1; # found it, so not missing
+        else
+            return 0;
+        fi
+    else
+        return 0; # always missing config element when config file is missing
+    fi
+}
+
+# config_property <property>
+#
+# returns the property asked for, where:
+#   - if name starts with DEFAULT_ it is presumed to be a string value
+#   - if it starts with PREFERS_ it is expected to be a boolean (aka,  0 / 1 in bash)
+#     - note that in config file you can use "true"/"false" nominclature as it's clearer
+#   - in all other cases it is presumed to be an array
+#
+# in cases where the property is not found, it returns the "identity"
+# for the expected type (e.g., "" for string, () for arrays)
 function config_property() {
     local -r property="${1}"
 
@@ -312,10 +392,11 @@ function config_property() {
         local -r found=$(find_in_file "${MOXY_CONFIG_FILE}" "$property")
 
         # shellcheck disable=SC2128
-        if is_empty "${found}"; then
-            error "${property} property not found in config file: ${DIM}${MOXY_CONFIG_FILE}${RESET}" 1
-        else
-            printf "%s" "${found}"
-        fi
+        echo "${found}"
+    else
+        # shellcheck disable=SC2207
+        local -ra found_all=( $(findall_in_file "${MOXY_CONFIG_FILE}" "$property") )
+        printf "%s" "${found_all[@]}"
     fi
 }
+

@@ -50,7 +50,6 @@ function preferred_distro() {
     else
         update_config "DEFAULT_DISTRO" "$distro"
     fi
-    
 }
 
 
@@ -80,16 +79,24 @@ function sudo_user() {
         local -r username=$(ask_inputbox _username)
 
         if was_cancelled "$username" || [[ "${#username}" -lt 2 ]]; then
-            replace_line_in_file_or_append "${MOXY_CONFIG_FILE}" "SUDO_USER" "SUDO_USER=true"
+            update_config "SUDO_USER" "${username}"
+            if config_is_missing "DEFAULT_SUDO_USER"; then
+                update_config "DEFAULT_SUDO_USER" "true"
+            fi
         else 
-            replace_line_in_file_or_append "${MOXY_CONFIG_FILE}" "SUDO_USER" "SUDO_USER=${username}"
+            update_config "SUDO_USER" "${username}"
+            if config_is_missing "DEFAULT_SUDO_USER"; then
+                update_config "DEFAULT_SUDO_USER" "${username}"
+            fi
         fi
 
 
     else
-        replace_line_in_file_or_append "${MOXY_CONFIG_FILE}" "SUDO_USER" "SUDO_USER=false"
+        update_config "DEFAULT_SUDO_USER" "false"
+        if config_is_missing "DEFAULT_SUDO_USER"; then
+            update_config "DEFAULT_SUDO_USER" "${username}"
+        fi
     fi
-
 }
 
 
@@ -97,11 +104,11 @@ function ssh_access() {
     clear
 
     local -ra choices=(
-            "No_SSH" "$(space_to_nbsp "No SSH. Only access via Proxmox console.")" ON
-            "Keys_Only" "$(space_to_nbsp "only crypto keys in .ssh/authorized")" OFF
-            # shellcheck disable=SC2207
-            "Keys_Or_Password" "$(space_to_nbsp "SSH allowed with key or user/pwd")" OFF
-        )
+        "No_SSH" "$(space_to_nbsp "No SSH. Only access via Proxmox console.")" ON
+        "Keys_Only" "$(space_to_nbsp "only crypto keys in .ssh/authorized")" OFF
+        # shellcheck disable=SC2207
+        "Keys_Or_Password" "$(space_to_nbsp "SSH allowed with key or user/pwd")" OFF
+    )
 
     local -rA _radio=(
         [title]="Defaults for SSH\n\nChoose from the options below to specify the default values you'd like to set for how SSH should be used with new containers"
@@ -115,5 +122,9 @@ function ssh_access() {
 
     local -r choice=$(ask_radiolist _radio)
 
-    replace_line_in_file_or_append "${MOXY_CONFIG_FILE}" "DEFAULT_SSH" "DEFAULT_SSH=${choice}"
+    if not_empty "$choice"; then
+        update_config "DEFAULT_SSH" "${choice}"
+    else
+        update_config "DEFAULT_SSH" "No_SSH"
+    fi
 }

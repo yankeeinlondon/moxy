@@ -3,44 +3,54 @@
 . "./utils/shared.sh"
 
 catch_errors
+initialize_config
 
-function check() {
-    local -r arithmetic='→+-=><%'
-    if has_characters "${arithmetic}" "$1"; then
-        log "had arithemetic chars"
-    else
-        log "did not"
-    fi
-}
+# S='
+# FOOT="BOOT"
+# '
+# eval $S
 
-check "abc"
-check 'ab→bc'
-check 'sub-monkey"'
+# set_env "FOOT" "GUN"
 
-is_bound FOOBAR2 && echo "foobar2 is bound" || echo "foobar2 is NOT bound"
+# echo "what is foot? ${FOOT}"
 
-FOOBAR="foobar"
+# function check() {
+#     local -r arithmetic='→+-=><%'
+#     if has_characters "${arithmetic}" "$1"; then
+#         log "had arithemetic chars"
+#     else
+#         log "did not"
+#     fi
+# }
 
-is_bound FOOBAR && echo "foobar is bound" || echo "foobar is not bound"
-is_bound "hippo" && echo "hippo is bound" || echo "hippo is not bound"
-is_bound 42 && echo "42 is bound" || echo "42 is not bound"
-NUM=42
-is_bound NUM && echo "numeric ref is bound" || echo "numeric ref is not bound"
+# check "abc"
+# check 'ab→bc'
+# check 'sub-monkey"'
+
+# is_bound FOOBAR2 && echo "foobar2 is bound" || echo "foobar2 is NOT bound"
+
+# FOOBAR="foobar"
+
+# is_bound FOOBAR && echo "foobar is bound" || echo "foobar is not bound"
+# is_bound "hippo" && echo "hippo is bound" || echo "hippo is not bound"
+# is_bound 42 && echo "42 is bound" || echo "42 is not bound"
+# NUM=42
+# is_bound NUM && echo "numeric ref is bound" || echo "numeric ref is not bound"
 
 
-declare -Ar TOKEN=(
-    [title]="Save API Token\n\nYou are not on a PVE node so we will need to use the Proxmox API:\n\n  - to do that we will need an API_KEY\n  - you can provide the ENV variable PVEAPIToken\n  - however, we can store your key in ~/.config/moxy/config.toml\n  - permissions will be set so only you can access it\n\n\n  - if you don't have a key you can create via UI\n\nIf you'd prefer just to use ENV vars then exit, export the variable and run moxy again. \n\n"
-    [backmsg]="Proxmox Config"
-    [height]=23
-    [width]=60
-    [ok]="Save API Key"
-    [cancel]="Exit"
-    [on_cancel]="exit"
-    [exit_msg]="${GREEN}PVEAPIToken${RESET} ENV variable and then reload Moxy."
-)
+# declare -Ar TOKEN=(
+#     [title]="Save API Token\n\nYou are not on a PVE node so we will need to use the Proxmox API:\n\n  - to do that we will need an API_KEY\n  - you can provide the ENV variable PVEAPIToken\n  - however, we can store your key in ~/.config/moxy/config.toml\n  - permissions will be set so only you can access it\n\n\n  - if you don't have a key you can create via UI\n\nIf you'd prefer just to use ENV vars then exit, export the variable and run moxy again. \n\n"
+#     [backmsg]="Proxmox Config"
+#     [height]=23
+#     [width]=60
+#     [ok]="Save API Key"
+#     [cancel]="Exit"
+#     [on_cancel]="exit"
+#     [exit_msg]="${GREEN}PVEAPIToken${RESET} ENV variable and then reload Moxy."
+# )
 
-is_bound TOKEN && echo "token is bound" ||echo "token is NOT bound "
-is_assoc_array TOKEN && echo "token is obj" || echo "token is NOT obj ${TOKEN@a}"
+# is_bound TOKEN && echo "token is bound" ||echo "token is NOT bound "
+# is_assoc_array TOKEN && echo "token is obj" || echo "token is NOT obj ${TOKEN@a}"
 
 
 
@@ -108,14 +118,14 @@ is_assoc_array TOKEN && echo "token is obj" || echo "token is NOT obj ${TOKEN@a}
 # _List=$(list "foo" "bar" "baz")
 # typeof _List
 
-KV=$(kv "one" "two")
-is_kv_pair KV & echo "KV!" || "ooops"
-is_kv_pair "$KV" & echo "KV!" || "ooops"
+# KV=$(kv "one" "two")
+# is_kv_pair KV & echo "KV!" || "ooops"
+# is_kv_pair "$KV" & echo "KV!" || "ooops"
 
-is_bound "$KV" & echo "\$KV is bound?" || "\$KV is unbound"
+# is_bound "$KV" & echo "\$KV is bound?" || "\$KV is unbound"
 
-echo "KV type is '$(typeof KV)' = $KV"
-echo "KV type is '$(typeof "${KV}")' = $KV"
+# echo "KV type is '$(typeof KV)' = $KV"
+# echo "KV type is '$(typeof "${KV}")' = $KV"
 
 # ObjFromKv=$(object "foo=bar" "bar=baz")
 # echo "ObjFromKv type is '$(typeof ObjFromKv)' = ${ObjFromKv}"
@@ -162,4 +172,17 @@ echo "KV type is '$(typeof "${KV}")' = $KV"
 # # ensure_directory "${HOME}/.config/moxy"
 
 # remove_file_from_filepath "/Users/ken/.config/moxy/config.toml"
+
+# first_obj=$(echo "$JSON" | jq -c '.[0]')
+# echo "$first_obj" | jq -j 'to_entries[] | (.key, "\u0000", .value, "\u0000")'
+JSON=$(pve_lxc_containers) 
+declare -a DATA=()
+declare -A QUERY=(
+    [sort]="vmid"
+)
+json_list_data JSON DATA QUERY
+
+log "data has ${#DATA[@]} records"
+
+log "${DATA[*]}"
 

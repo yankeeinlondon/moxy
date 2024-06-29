@@ -63,6 +63,47 @@ function find_in_file() {
 }
 
 
+# find_key_in_file() <filepath> <key>
+#
+# Find a <key> at the start of a line in <filepath> which matches the
+# structure ^KEY=
+#
+# Note: this is quite similar to find_in_file() but is just more particular
+# about the KEY being at start of line and that it equals something 
+function find_key_in_file() {
+    local -r filepath="${1:?find_in_file() called but no filepath passed in!}"
+    local -r key="${2:?find_in_file() called but key value passed in!}"
+
+    if file_exists "${filepath}"; then
+        debug "find_key_in_file" "file at '${filepath}' found"
+        local found=""
+
+        while read -r line; do
+            if not_empty "${line}" && contains "${key}=" "${line}"; then
+                if starts_with "${key}=" "${line}"; then
+                    found="$(strip_leading "${key}=" "${line}")"
+                    break
+                fi
+            fi
+        done < "$filepath"
+
+        if not_empty "$found"; then
+            debug "find_key_in_file" "found ${key}: ${found}"
+            printf "%s" "$found"
+            return 0
+        else
+            debug "find_key_in_file" "Did not find '${key}' in the file at '${filepath}'"
+            echo ""
+            return 0
+        fi
+        
+    else
+        debug "find_key_in_file" "no file at filepath '${filepath}'"
+        return 1
+    fi
+}
+
+
 # distro_version() <[vmid]>
 #
 # will try to detect the linux distro's version id and name 

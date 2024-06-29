@@ -17,40 +17,55 @@ function status_help() {
 
 
 function lxc_status() {
-    local -A data
-    local -r json="$(pve_lxc_containers)"
-    local -a containers
+    # local -A data
+    # local -r json="$(pve_lxc_containers)"
+    # local -a containers
 
-    # Parse JSON and convert it into an array of associative arrays
-    mapfile -t containers < <(jq -c '.[]' <<<"$json")
+    # # Parse JSON and convert it into an array of associative arrays
+    # mapfile -t containers < <(jq -c '.[]' <<<"$json")
 
-    declare -A container_data
-    for container in "${containers[@]}"; do
-        declare -A data
-        while IFS= read -r -d '' key && IFS= read -r -d '' value; do
-            data["$key"]="$value"
-        done < <(jq -j 'to_entries[] | (.key, "\u0000", .value, "\u0000")' <<<"$container")
+    # declare -A container_data
+    # for container in "${containers[@]}"; do
+    #     declare -A data
+    #     while IFS= read -r -d '' key && IFS= read -r -d '' value; do
+    #         data["$key"]="$value"
+    #     done < <(jq -j 'to_entries[] | (.key, "\u0000", .value, "\u0000")' <<<"$container")
 
-        if [[ -n "${data[vmid]:-}" ]]; then
-            container_data["${data[vmid]}"]=$(declare -p data | sed 's/^declare -A data=//')
-        else
-            echo "Warning: VMID not found in container data: $container" >&2
-        fi
-    done
+    #     if [[ -n "${data[vmid]:-}" ]]; then
+    #         container_data["${data[vmid]}"]=$(declare -p data | sed 's/^declare -A data=//')
+    #     else
+    #         echo "Warning: VMID not found in container data: $container" >&2
+    #     fi
+    # done
+
+    local -r json=$(pve_lxc_containers)
+    local -a data=()
+    local -A query=(
+        [sort]="vmid"
+    )
+    
+    json_list_data json data query
+
+    echo "records: ${#data[@]}"
+    echo ""
+
+    local -A record
+    allow_errors
+
 
     local -A tag_color=()
     # shellcheck disable=SC2034
-    local -a tag_pallette=( "${BG_PALLETTE[@]}" )
+    local -a tag_palette=( "${BG_PALLETTE[@]}" )
 
     # Sort by VMID and display the results
     log ""
     log "🏃${BOLD} Running Containers${RESET}"
     log "-----------------------------------------------------"
-    for vmid in $(echo "${!container_data[@]}" | tr ' ' '\n' | sort -n); do
-        eval "declare -A data=${container_data[$vmid]}"
-        if [[ "${data[status]}" == "running" ]]; then
+    for item in "${!data[@]}"; do
+        eval "declare -A record=${data[item]}"
+        if [[ "${record[status]}" == "running" ]]; then
             # shellcheck disable=SC2207
-            local -a tags=( $(split_on ";" "${data["tags"]}") )
+            local -a tags=( $(split_on ";" "${record["tags"]}") )
             local display_tags=""
             
             for t in "${tags[@]}"; do
@@ -59,9 +74,9 @@ function lxc_status() {
                 if not_empty "${tag_color["$t"]}"; then
                     color="${tag_color["$t"]}"
                 else
-                    if ! unshift tag_pallette color; then
-                        tag_pallette=( "${BG_PALLETTE[@]}" )
-                        unshift tag_pallette color
+                    if ! unshift tag_palette color; then
+                        tag_palette=( "${BG_PALLETTE[@]}" )
+                        unshift tag_palette color
                     fi
                     tag_color["$t"]="$color"
                 fi
@@ -69,18 +84,18 @@ function lxc_status() {
                 display_tags="${display_tags} ${color}${t}${RESET}"
             done
 
-            log "- ${data["name"]} [${DIM}${data["vmid"]}${RESET}]: ${ITALIC}${DIM}running on ${RESET}${data["node"]}; ${display_tags}"; 
+            log "- ${record[name]} [${DIM}${record[vmid]}${RESET}]: ${ITALIC}${DIM}running on ${RESET}${record[node]}; ${display_tags}"; 
         fi
     done
 
     log ""
     log "✋${BOLD} Stopped Containers${RESET}"
     log "-----------------------------------------------------"
-    for vmid in $(echo "${!container_data[@]}" | tr ' ' '\n' | sort -n); do
-        eval "declare -A data=${container_data[$vmid]}"
-        if [[ "${data[status]}" == "stopped" ]]; then
+    for item in "${!data[@]}"; do
+        eval "declare -A record=${data[item]}"
+        if [[ "${record[status]}" == "stopped" ]]; then
             # shellcheck disable=SC2207
-            local -a tags=( $(split_on ";" "${data["tags"]}") )
+            local -a tags=( $(split_on ";" "${record["tags"]:-}") )
             local display_tags=""
             
             for t in "${tags[@]}"; do
@@ -89,9 +104,10 @@ function lxc_status() {
                 if not_empty "${tag_color["$t"]}"; then
                     color="${tag_color["$t"]}"
                 else
-                    if ! unshift tag_pallette color; then
-                        tag_pallette=( "${BG_PALLETTE[@]}" )
-                        unshift tag_pallette color
+                    if ! unshift tag_palette color; then
+                        # shellcheck disable=SC2034
+                        tag_palette=( "${BG_PALLETTE[@]}" )
+                        unshift tag_palette color
                     fi
                     tag_color["$t"]="$color"
                 fi
@@ -100,13 +116,14 @@ function lxc_status() {
             done
 
             local template_icon=""
-            if [[ "${data["template"]}" == "1" ]]; then
+            if [[ "${record["template"]}" == "1" ]]; then
                 template_icon="📄 "
             fi
 
-            log "- ${template_icon}${data["name"]} [${DIM}${data["vmid"]}${RESET}]: ${ITALIC}${DIM}residing on ${RESET}${data["node"]}; ${display_tags}"; 
+            log "- ${template_icon}${record["name"]} [${DIM}${record["vmid"]}${RESET}]: ${ITALIC}${DIM}residing on ${RESET}${record["node"]}; ${display_tags}"; 
         fi
     done
+    catch_errors
 }
 
 function vm_status() {
@@ -117,7 +134,7 @@ function cluster_status() {
 }
 
 function node_status() {
-    echo "not ready"
+   echo "not ready" 
 }
 
 function storage_status() {
@@ -168,7 +185,6 @@ function storage_status() {
         fi
         if [[ "${data[shared]}" == "1" ]]; then
             log "- ${data["storage"]}${DIM}@${data["server"]}${RESET} - ${BOLD}${BLUE}${data["type"]}${RESET} -${icons} - ${DIM}${data["path"]:-}${RESET}"
-
         fi
     done
 
