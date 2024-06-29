@@ -28,6 +28,21 @@ function is_pve_node() {
     fi
 }
 
+function call_api() {
+    local -r path="${1:?No path passed to call_api()}"
+    local -r filter="${2:-}"
+    local offset_filter
+    if is_pve_node; then
+        offset_filter=$(ensure_starting ". " "$(strip_leading ".data " "$filter")")
+        debug "call_api" "using pvesh to get '${path}' with filter '${offset_filter}'"
+        printf "%s" "$(get_pvesh "${path}" "$offset_filter")"
+    else
+        offset_filter=$(ensure_starting ".data " "$(strip_leading ". " "$filter")")
+        debug "call_api" "using pve API to get '${path}' with filter '${offset_filter}'"
+        printf "%s" "$(get_pve "${path}" "$offset_filter")"
+    fi
+}
+
 # get_pve_url <host> <path>
 #
 # Combines the base URL, the host and the path
@@ -280,12 +295,12 @@ function pve_lxc_containers() {
 
 function pve_vm_containers() {
     local -r path="/cluster/resources"
-    local -r filter=".data.[] | select(.type == \"qemu\")"
+    local -r filter='.data.[] | map(select(.type == "qemu"))'
     local resources
     if is_pve_node; then
-        resources="$(get_pvesh "${path}" "${filter}")"
+        resources=$(get_pvesh "${path}" '. | map(select(.type == "qemu"))')
     else 
-        resources="$(get_pve "${path}" "${filter}")"
+        resources=$(get_pve "${path}" '.data | map(select(.type == "qemu"))')
     fi
 
     printf "%s" "${resources}"
@@ -320,10 +335,32 @@ function pve_nodes() {
     if is_pve_node; then
         nodes=$(get_pvesh "/nodes" '. | map(.)')
     else
-        nodes=$(get_pve "/nodes" '. | map(.)')
+        nodes=$(get_pve "/nodes" '.data | map(.)')
     fi
 
     printf "%s" "${nodes}"
+}
+
+
+# pve_cluster_info <ref:name> <ref:nodes>
+function pve_cluster_info() {
+    local -n __name=$1
+    local -n __nodes=$2
+    local -r cluster=$(call_api "/cluster/status" '.data | map(select(.type == "cluster"))')
+
+    __name=$(echo "${cluster}" | jq -r '.[] | .name')
+
+    local -r json=$(call_api "/cluster/status" '.data | map(select(.type == "node"))')
+    local -a data
+    json_list_data json data
+
+    __nodes=()
+    for idx in "${!data[@]}"; do
+        local -A record
+        record="${data[${idx}]}"
+        __nodes+=( "${record[@]}" )
+    done
+
 }
 
 function pve_cluster_status() {
@@ -406,3 +443,18 @@ function pve_node_disks() {
 
     printf "%s" "${resp}"
 }
+
+# pve_lxc_status <node> <vmid>
+function pve_lxc_status() {
+    local -r node="${1:?No node name was passed to pve_lxc_container_status()!}"
+    local -r vmid="${2:?No VMID passed to pve_lxc_container_status()}"
+    local -A resp
+    if is_pve_node; then
+        resp=$(get_pvesh "/nodes/${node}/lxc/${vmid}/status/current" '.data | map(.)')
+    else
+        resp=$(get_pve "/nodes/${node}/lxc/${vmid}/status/current" '. | map(.)')
+    fi
+
+    printf "%s" "${resp[@]}"
+}
+

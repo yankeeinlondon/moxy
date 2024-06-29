@@ -175,14 +175,8 @@ initialize_config
 
 # first_obj=$(echo "$JSON" | jq -c '.[0]')
 # echo "$first_obj" | jq -j 'to_entries[] | (.key, "\u0000", .value, "\u0000")'
-JSON=$(pve_lxc_containers) 
-declare -a DATA=()
-declare -A QUERY=(
-    [sort]="vmid"
-)
-json_list_data JSON DATA QUERY
 
-log "data has ${#DATA[@]} records"
-
-log "${DATA[*]}"
+TXT=".data | map(select)"
+starts_with ".data" "$TXT" && echo "sure does" || echo "nope"
+printf "%s" "$(ensure_starting ".data" "$TXT")"
 

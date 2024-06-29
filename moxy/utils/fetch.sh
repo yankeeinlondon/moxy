@@ -102,9 +102,12 @@ function pve_auth_header() {
 
 # json_list_data <ref:json> <ref:data> <ref: query>
 function json_list_data() {
+    allow_errors
     local -n __json=$1
     local -n __data=$2
-    local -n __query=$3 # sorting, filtering, etc.
+    local -n __query=$3 2>/dev/null # sorting, filtering, etc.
+    local -n __fn=$4 2>/dev/null
+    catch_errors
     local -A record
 
     if is_not_typeof __json "string"; then

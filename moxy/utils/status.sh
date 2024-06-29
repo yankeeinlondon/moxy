@@ -17,41 +17,13 @@ function status_help() {
 
 
 function lxc_status() {
-    # local -A data
-    # local -r json="$(pve_lxc_containers)"
-    # local -a containers
-
-    # # Parse JSON and convert it into an array of associative arrays
-    # mapfile -t containers < <(jq -c '.[]' <<<"$json")
-
-    # declare -A container_data
-    # for container in "${containers[@]}"; do
-    #     declare -A data
-    #     while IFS= read -r -d '' key && IFS= read -r -d '' value; do
-    #         data["$key"]="$value"
-    #     done < <(jq -j 'to_entries[] | (.key, "\u0000", .value, "\u0000")' <<<"$container")
-
-    #     if [[ -n "${data[vmid]:-}" ]]; then
-    #         container_data["${data[vmid]}"]=$(declare -p data | sed 's/^declare -A data=//')
-    #     else
-    #         echo "Warning: VMID not found in container data: $container" >&2
-    #     fi
-    # done
-
     local -r json=$(pve_lxc_containers)
     local -a data=()
     local -A query=(
         [sort]="vmid"
     )
-    
     json_list_data json data query
-
-    echo "records: ${#data[@]}"
-    echo ""
-
     local -A record
-    allow_errors
-
 
     local -A tag_color=()
     # shellcheck disable=SC2034
@@ -59,7 +31,7 @@ function lxc_status() {
 
     # Sort by VMID and display the results
     log ""
-    log "🏃${BOLD} Running Containers${RESET}"
+    log "🏃${BOLD} Running LxC Containers${RESET}"
     log "-----------------------------------------------------"
     for item in "${!data[@]}"; do
         eval "declare -A record=${data[item]}"
@@ -89,20 +61,19 @@ function lxc_status() {
     done
 
     log ""
-    log "✋${BOLD} Stopped Containers${RESET}"
+    log "✋${BOLD} Stopped LxC Containers${RESET}"
     log "-----------------------------------------------------"
     for item in "${!data[@]}"; do
         eval "declare -A record=${data[item]}"
-        if [[ "${record[status]}" == "stopped" ]]; then
+        if [[ "${record[status]}" = "stopped" ]]; then
             # shellcheck disable=SC2207
             local -a tags=( $(split_on ";" "${record["tags"]:-}") )
             local display_tags=""
             
             for t in "${tags[@]}"; do
                 local color
-                allow_errors
-                if not_empty "${tag_color["$t"]}"; then
-                    color="${tag_color["$t"]}"
+                if not_empty "${tag_color["$t"]:-}"; then
+                    color="${tag_color["$t"]:-}"
                 else
                     if ! unshift tag_palette color; then
                         # shellcheck disable=SC2034
@@ -120,84 +91,171 @@ function lxc_status() {
                 template_icon="📄 "
             fi
 
-            log "- ${template_icon}${record["name"]} [${DIM}${record["vmid"]}${RESET}]: ${ITALIC}${DIM}residing on ${RESET}${record["node"]}; ${display_tags}"; 
+            local locked_icon=""
+
+            log "- ${template_icon}${locked_icon}${record["name"]} [${DIM}${record["vmid"]}${RESET}]: ${ITALIC}${DIM}residing on ${RESET}${record["node"]}; ${display_tags}"; 
         fi
     done
-    catch_errors
 }
 
 function vm_status() {
-    echo "not ready"
+    local -r json=$(pve_vm_containers)
+    local -a data=()
+    local -A query=(
+        [sort]="vmid"
+    )
+    json_list_data json data query
+    local -A record
+
+    local -A tag_color=()
+    # shellcheck disable=SC2034
+    local -a tag_palette=( "${BG_PALLETTE[@]}" )
+
+    # Sort by VMID and display the results
+    log ""
+    log "🏃${BOLD} Running VM Containers${RESET}"
+    log "-----------------------------------------------------"
+    for item in "${!data[@]}"; do
+        eval "declare -A record=${data[item]}"
+        if [[ "${record[status]}" == "running" ]]; then
+            # shellcheck disable=SC2207
+            local -a tags=( $(split_on ";" "${record["tags"]}") )
+            local display_tags=""
+            
+            for t in "${tags[@]}"; do
+                local color
+                allow_errors
+                if not_empty "${tag_color["$t"]}"; then
+                    color="${tag_color["$t"]}"
+                else
+                    if ! unshift tag_palette color; then
+                        tag_palette=( "${BG_PALLETTE[@]}" )
+                        unshift tag_palette color
+                    fi
+                    tag_color["$t"]="$color"
+                fi
+                catch_errors
+                display_tags="${display_tags} ${color}${t}${RESET}"
+            done
+
+            log "- ${record[name]} [${DIM}${record[vmid]}${RESET}]: ${ITALIC}${DIM}running on ${RESET}${record[node]}; ${display_tags}"; 
+        fi
+    done
+
+    log ""
+    log "✋${BOLD} Stopped VM Containers${RESET}"
+    log "-----------------------------------------------------"
+    for item in "${!data[@]}"; do
+        eval "declare -A record=${data[item]}"
+        if [[ "${record[status]}" = "stopped" ]]; then
+            # shellcheck disable=SC2207
+            local -a tags=( $(split_on ";" "${record["tags"]:-}") )
+            local display_tags=""
+            
+            for t in "${tags[@]}"; do
+                local color
+                if not_empty "${tag_color["$t"]:-}"; then
+                    color="${tag_color["$t"]:-}"
+                else
+                    if ! unshift tag_palette color; then
+                        # shellcheck disable=SC2034
+                        tag_palette=( "${BG_PALLETTE[@]}" )
+                        unshift tag_palette color
+                    fi
+                    tag_color["$t"]="$color"
+                fi
+                catch_errors
+                display_tags="${display_tags} ${color}${t}${RESET}"
+            done
+
+            local template_icon=""
+            if [[ "${record["template"]}" == "1" ]]; then
+                template_icon="📄 "
+            fi
+
+            local locked_icon=""
+
+            log "- ${template_icon}${locked_icon}${record["name"]} [${DIM}${record["vmid"]}${RESET}]: ${ITALIC}${DIM}residing on ${RESET}${record["node"]}; ${display_tags}"; 
+        fi
+    done
 }
 function cluster_status() {
     echo "not ready"
 }
 
 function node_status() {
-   echo "not ready" 
+    local name=""
+    local -a nodes=()
+
+    pve_cluster_info name nodes
+
+    log "Cluster: ${name}"
+    log "Nodes:"
+    
+    for obj in "${nodes[@]}"; do
+        eval "local -A record=${obj}"
+        local online
+        if [[ "${record[online]}" == "1" ]]; then
+            online="${BG_GREEN} online ${RESET}"
+        else
+            online="${BG_RED} offline ${RESET}"
+        fi
+        log "  - ${record[name]}${DIM}@${record[ip]} ${online}"
+
+    done
+
 }
 
 function storage_status() {
-    local -A data
-    local -r json="$(pve_storage)"
-    local -a strorage_devices
-
-    # Parse JSON and convert it into an array of associative arrays
-    mapfile -t strorage_devices < <(jq -c '.[]' <<<"$json")
-
-    declare -A storage_data
-    for device in "${strorage_devices[@]}"; do
-        declare -A data
-        while IFS= read -r -d '' key && IFS= read -r -d '' value; do
-            data["$key"]="$value"
-        done < <(jq -j 'to_entries[] | (.key, "\u0000", .value, "\u0000")' <<<"$device")
-
-        if [[ -n "${data[storage]:-}" ]]; then
-            storage_data["${data[storage]}"]=$(declare -p data | sed 's/^declare -A data=//')
-        else
-            echo "Warning: 'storage' not found in container data: $container" >&2
-        fi
-    done
+    # shellcheck disable=SC2034
+    local -r json=$(pve_storage)
+    local -a data=()
+    # shellcheck disable=SC2034
+    local -A query=()
+    json_list_data json data query
+    local -A record
 
     log ""
     log "🐘${BOLD} Shared Storage${RESET}"
     log "-----------------------------------------------------"
-    for storage in $(echo "${!storage_data[@]}" | tr ' ' '\n' | sort -n); do
-        eval "declare -A data=${storage_data[$storage]}"
+    for idx in "${!data[@]}"; do
+        eval "declare -A record=${data[idx]}"
         local icons=""
-        if contains "images" "${data["content"]}"; then
+        if contains "images" "${record["content"]}"; then
             icons="${icons} 🥏"
         fi
-        if contains "backup" "${data["content"]}"; then
+        if contains "backup" "${record["content"]}"; then
             icons="${icons} ⏺️ "
         fi
-        if contains "snippets" "${data["content"]}"; then
+        if contains "snippets" "${record["content"]}"; then
             icons="${icons} ✄"
         fi
-        if contains "rootdir" "${data["content"]}"; then
+        if contains "rootdir" "${record["content"]}"; then
             icons="${icons} ⋋"
         fi
-        if contains "iso" "${data["content"]}"; then
+        if contains "iso" "${record["content"]}"; then
             icons="${icons} 📀"
         fi
-        if contains "pbs" "${data["content"]}"; then
+        if contains "pbs" "${record["content"]}"; then
             icons="${icons} 👆"
         fi
-        if [[ "${data[shared]}" == "1" ]]; then
-            log "- ${data["storage"]}${DIM}@${data["server"]}${RESET} - ${BOLD}${BLUE}${data["type"]}${RESET} -${icons} - ${DIM}${data["path"]:-}${RESET}"
+        if [[ "${record[shared]:-}" == "1" ]]; then
+            log "- ${record[storage]}${DIM}@${record[server]:-}${RESET} - ${BOLD}${BLUE}${record[type]:-}${RESET} -${icons} - ${DIM}${record[path]:-}${RESET}"
         fi
     done
 
     log ""
     log "🛖${BOLD} Local Storage${RESET}"
     log "-----------------------------------------------------"
-    for storage in $(echo "${!storage_data[@]}" | tr ' ' '\n' | sort -n); do
-        eval "declare -A data=${storage_data[$storage]}"
-        if [[ "${data[shared]}" != "1" ]]; then
-            log "- ${data["storage"]}${DIM}@${data["server"]}${RESET} - ${BOLD}${BLUE}${data["type"]}${RESET} - "
+    allow_errors
+    for idx in "${!data[@]}"; do
+        eval "declare -A record=${data[idx]}"
+        if [[ "${record[shared]:-}" == "0" ]]; then
+            log "- ${record[storage]:-} - ${BOLD}${BLUE}${record[type]:-}${RESET} - "
 
         fi
     done
+    catch_errors
 }
 
 

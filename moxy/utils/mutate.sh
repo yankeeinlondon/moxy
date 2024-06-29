@@ -651,9 +651,12 @@ function ensure_starting() {
     local -r ensured="${1:?No ensured string provided to ensure_starting}"
     local -r content="${2:?-}"
 
-    if starts_with "${ensured}"; then
+    if starts_with "${ensured}" "$content"; then
+        debug "ensure_starting" "the ensured text '${ensured}' was already in place"
         echo "${content}"
     else
+        debug "ensure_starting" "the ensured text '${ensured}' was added in front of '${content}'"
+
         echo "${ensured}${content}"
     fi
 
