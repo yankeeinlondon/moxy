@@ -29,33 +29,6 @@ export ERR_INVALID_API_KEY=130
 
 export CALL_STACK=()
 
-function returned() {
-    local -ri code="${1:-Function must provide a return code to returned()}"
-    local -r err_msg="${2}"
-    local -A current
-    unshift CALL_STACK current
-
-    if [[ $code -eq 0 ]]; then
-
-        return 0
-    else
-        log "${BOLD}${RED}Error in ${current["fn"]}() with ID ${current["id"]}:${RESET} ${err_msg}"
-
-        return $code;
-    fi
-}
-
-function called() {
-    local -r fn_name="${1:-Function name was not provided to called()!}"
-    local -r fn_id="${2:-Function ID was not passed in with $$!}"
-    local -A _stack_el=(
-        [fn]="${fn_name}"
-        [id]="${fn_id}"
-    )
-    push CALL_STACK _stack_el
-}
-
-
 
 # error_path()
 #

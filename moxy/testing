@@ -176,7 +176,14 @@ initialize_config
 # first_obj=$(echo "$JSON" | jq -c '.[0]')
 # echo "$first_obj" | jq -j 'to_entries[] | (.key, "\u0000", .value, "\u0000")'
 
-TXT=".data | map(select)"
-starts_with ".data" "$TXT" && echo "sure does" || echo "nope"
-printf "%s" "$(ensure_starting ".data" "$TXT")"
+
+OBJ=$(object 'foo=1' 'bar=2')
+echo "$OBJ"
+push OBJ "baz=3"
+
+printf  "%s\n" "$(keys "$OBJ")"
+log ""
+printf  "%s\n" "$(values "$OBJ")"
+log ""
+
 

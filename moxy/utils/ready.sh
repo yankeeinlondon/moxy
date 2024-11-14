@@ -61,7 +61,10 @@ function ensure_bash() {
                 log ""
 
             else 
-                log "don't"
+                log "Since you don't appear to have ${BOLD}Homebrew${RESET} installed, we'll let you upgrade"
+                log "your version of bash and rerun Moxy when you're ready"
+                log ""
+                exit
             fi
             log ""
         else

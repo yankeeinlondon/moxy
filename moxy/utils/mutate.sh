@@ -307,14 +307,20 @@ function list() {
 
 function object() {
     allow_errors
-    local -n assoc_candidate=$1 2>/dev/null
-    local -a initial=()
-    if has_parameters "$@"; then
-        initial=("${@}")
-    fi
-    
-    catch_errors
+    local -ra params=( "$@" )
+    if ! has_characters '!@#$%^&()_+' "$1:-"; then
+        local -n assoc_candidate=$1 2>/dev/null
 
+        if is_assoc_array assoc_candidate; then
+        debug "object" "parsing associative array"
+        for key in "${!assoc_candidate[@]}"; do
+            local kv_pair
+            kv_pair=$(kv "${key}" "${assoc_candidate[${key}]}")
+            object_defn="${object_defn}${OBJECT_DELIMITER}${kv_pair}"
+        done
+        fi
+    fi
+    catch_errors
     local object_defn=""
 
     if is_assoc_array assoc_candidate; then
@@ -324,21 +330,26 @@ function object() {
             kv_pair=$(kv "${key}" "${assoc_candidate[${key}]}")
             object_defn="${object_defn}${OBJECT_DELIMITER}${kv_pair}"
         done
+
     else 
-        for i in "${initial[@]}"; do
-            if is_kv_pair "${i}"; then
+        for i in "${params[@]}"; do
+            if is_kv_pair "${i[@]}"; then
                 debug "object" "parsing KV syntax: ${i}"
                 object_defn="${object_defn}${OBJECT_DELIMITER}${i}"
 
             elif has_characters "=" "${i}"; then
                 debug "object" "parsing x=y syntax: ${i}"
+                local k
+                k=$(strip_after "=" "${i}")
+                local v
+                v=$(strip_before "=" "${i}")
                 local key_value
-                key_value=$(kv "$(strip_after "=" "${i}")" "$(strip_before "=" "${i}")")
+                key_value=$(kv "${k}" "${v}")
                 object_defn="${object_defn}${OBJECT_DELIMITER}${key_value}"
             else
-                debug "object" "uncertain initializer: ${i}"
+                debug "object" "invalid initializer: ${i}"
                 if ! is_assoc_array "${i}"; then
-                    error "invalid inializer value passed to object(): ${DIM}${i}${RESET}"
+                    panic "\nInvalid initializer value '${i}' passed to object(${params[*]}): ${DIM}${i}${RESET}\n"
                 fi
             fi
         done
@@ -352,6 +363,17 @@ function object() {
     
 
     return 0
+}
+
+function index_of() {
+    local -r container="$1"
+    local -r key="$2"
+
+    if is_object "$container" && not_empty "$key"; then
+        local value
+        value=$(strip_before "${KV_PREFIX}${key}${KV_DELIMITER}" "${container}")
+        value=$(strip_after "KV_SUFFIX" "$value" )
+    fi
 }
 
 function json_to_assoc_array() {
@@ -387,11 +409,35 @@ function keys() {
         done
 
         debug "keys" "${items[*]}"
-        echo "${items[@]}"
+        printf "%s\n" "${items[@]}"
         return 0
     fi
-    # while read -r line; do items+=("$line"); done <<< "$(split "${DICT_DELIMITER}" "$dict_hash"))"
+}
 
+# values <object>
+#
+# Returns an array of values for a given object
+function values() {
+    local obj="${1:?no parameters passed into keys()}"
+    local -a items=()
+    if ! is_object "${obj}"; then
+        debug "values" "invalid object: ${DIM}${obj}${RESET}"
+        return 1
+    else
+        # shellcheck disable=SC2207
+        local -ra kvs=( $(object_to_kv_array "$obj") )
+
+        for kv in "${kvs[@]}"; do
+            local val=""
+            val=$(last "$kv")
+            debug "keys" "kv: ${kv}, val: ${val}"
+            items+=( "${val}" )
+        done
+
+        debug "values" "${items[*]}"
+        printf "%s\n" "${items[@]}"
+        return 0
+    fi
 }
 
 # kv <key> <value>
@@ -457,11 +503,13 @@ function length() {
 function object_to_kv_array() {
     local obj="${1?:nothing passed into object_stript}"
     obj=$(object_strip "$obj")
+    debug "object_to_kv_array" "object stripped down to just kv_pair's: ${obj}"
     local -a kv_arr=()
     # shellcheck disable=SC2207
-    kv_arr=( $(split "${OBJECT_DELIMITER}" "${obj}") )
+    kv_arr=( $(split_on "${OBJECT_DELIMITER}" "${obj}") )
+    debug "object_to_kv_array" "object represented as a ${#kv_arr[@]} element KV array: ${kv_arr[*]}"
 
-    echo "${kv_arr[@]}"
+    printf "%s\n" "${kv_arr[@]}"
     return 0
 }
 
@@ -470,8 +518,38 @@ function object_to_kv_array() {
 # Ensures that <container> is a bash array and will convert
 # lists, objects, and proxy normal arrays
 function as_array() {
+    local -r by_val="$1"
+
+    if is_list "$by_val"; then
+        elements=$(list_elements "${by_val}")
+        #shellcheck disable=SC2206
+        local -a arr=( ${elements//"${LIST_DELIMITER}"/ } )
+
+        debug "as_array" "array of length ${#arr[@]}: [ ${arr[*]} ]"
+        printf "%s\n" "${arr[@]}"
+
+        catch_errors
+        return 0
+    fi
+
+
+    if is_object "$by_val"; then
+        # shellcheck disable=SC2207
+        local -ra arr=( $(object_to_kv_array "${by_val}") )
+        printf "%s\n" "${arr[@]}"
+        catch_errors
+        return 0
+    fi
+
+    if is_typeof "$by_val" "string" && has_newline "${by_val}"; then
+        debug "as_array()" "because it's a string with newline characters we'll assume it already was an array"
+        printf "%s" "$by_val"
+        catch_errors
+        return 0
+    fi
+
     allow_errors
-    local -n __container=$1
+    local -n __container=$1 2>/dev/null
 
     if is_list __container; then
         elements=$(list_elements "${__container}")
@@ -489,13 +567,6 @@ function as_array() {
         # shellcheck disable=SC2207
         local -ra arr=( $(object_to_kv_array "${__container}") )
         printf "%s\n" "${arr[@]}"
-        catch_errors
-        return 0
-    fi
-
-    if has_newline "${__container}"; then
-        debug "as_array()" "because it's a string with newline characters we'll assume it already was an array"
-        printf "%s" "$__container"
         catch_errors
         return 0
     fi
@@ -953,6 +1024,40 @@ function unshift() {
     fi
 }
 
+
+# push_object() <ref:obj> <kv_pair|"key=value">
+function push_object() {
+    local -n __obj=$1
+    local -ra all=( "$@" )
+    local -ra params=( "${all[@]:1}" )
+
+    if ! is_object __obj; then
+        error "call to push_object(obj-ref, ...params) was called expecting an object reference as the first parameter but instead got $(typeof __obj)"
+    fi
+
+    local -a kvs
+    # shellcheck disable=SC2207
+    kvs=( $(as_array "${__obj}") )
+
+    debug "push_object" "object arrived as ${#kvs[@]} key/value pairs"
+
+    for p in "${params[@]}"; do
+        if is_kv_pair "${p}"; then
+            kvs+=( "$p" )
+        elif has_characters "=" "${p}"; then
+            debug "object" "parsing x=y syntax: ${p}"
+            local key_value
+            key_value=$(kv "$(strip_after "=" "${p}")" "$(strip_before "=" "${p}")")
+            kvs+=( "${key_value}" )
+        else
+            debug "push_object" "and parameter '${p}' was unable to be converted to a kv_pair and added to object"
+        fi
+    done
+
+    debug "push_object" "object now consists of ${#kvs[@]} key/value pairs"
+    __obj=$(object "${kvs[@]}")
+}
+
 function push() {
     allow_errors
     # shellcheck disable=SC2178
@@ -1010,6 +1115,9 @@ function push() {
                 error "invalid key value passed into push(${k})"
             fi
         fi
+    elif is_object __array__; then
+        # allows the more convenient "push" syntax to run "push_object"
+        push_object __array__ "${__params__[@]}"
 
     else
         error "invalid array passed into push(arr,...)"

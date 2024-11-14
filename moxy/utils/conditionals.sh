@@ -8,7 +8,7 @@ function is_bound() {
     allow_errors
     local -n __test_by_ref=$1 2>/dev/null || { debug "is_bound" "unbounded ref";  return 1; }
     local -r by_val="${1}:-"
-    local name="${!__test_by_ref}" 
+    local name="${!__test_by_ref}" 2
     local -r arithmetic='→+-=><%'
     if has_characters "${arithmetic}" "$1"; then
         debug "is_bound" "${name} is NOT bound"
@@ -26,9 +26,7 @@ function is_bound() {
             catch_errors
             return 0
         fi
-
     fi
-    
 }
 
 # is_assoc_array() <ref:var>
@@ -42,8 +40,12 @@ function is_bound() {
 # Note: this check only works after the variable passed in
 # is actually set and set -u is in effect
 function is_assoc_array() {
+    local -r var="$1"
+    if has_characters '!@#$%^&()_+' "$var"; then
+        return 1; 
+    fi
     allow_errors
-    local -n __var__=$1
+    local -n __var__=$1 2>/dev/null
 
     if [[ ${__var__@a} = A ]] || [[ ${__var__@a} = Ar ]]; then
         catch_errors
@@ -324,7 +326,7 @@ function file_contains() {
     local -r content="$(get_file "$filepath")"
 
     for item in "${matches[@]}"; do
-        if [[ "${content}" =~ ${item} ]]; then
+        if [[ "${content}" =~ ${item} ] ]; then
             return 0 # successful match
         fi
     done
@@ -423,14 +425,7 @@ function has_characters() {
     local -ra chars=( $(echo "${char_str}" | grep -o .) )
     local found="false"
 
-    for i in "${!chars[@]}"; do
-        if [[  ${content} == *"${chars[${i}]}"* ]]; then
-            found="true"
-            break
-        fi
-    done
-
-    if [[ "$found" == "true" ]]; then
+    if [[ "$content" == *["$char_str"]* ]]; then
         debug "has_characters" "does have some of these characters: '${char_str}'"
         return 0
     else
@@ -510,7 +505,7 @@ function is_kv_pair() {
             return 0
         fi
     else
-        if starts_with "${KV_PREFIX}" "${test_by_val}" && nds_with "${KV_SUFFIX}" "${test_by_val}"; then
+        if starts_with "${KV_PREFIX}" "${test_by_val}" && ends_with "${KV_SUFFIX}" "${test_by_val}"; then
             debug "is_kv_pair" "true (\"${DIM}${test_by_val}${RESET}\")"
             catch_errors
             return 0
@@ -553,7 +548,7 @@ function starts_with() {
         return 1; # was not present
     else
         debug "starts_with" "true (\"${DIM}${look_for}${RESET}\")"
-        return 0; # found "look_for"
+        return 0; #: found "look_for"
     fi
 }
 

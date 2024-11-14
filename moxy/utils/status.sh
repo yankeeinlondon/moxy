@@ -206,6 +206,27 @@ function node_status() {
 
 }
 
+report() {
+    local -n record=$1
+    log "- ${record[name]}"
+}
+function ha_status() {
+    local -a data=()
+    local -r json=$(pve_cluster_ha_status)
+
+    # shellcheck disable=SC2207
+    json_list json data
+
+    log "${#data[@]}"
+
+    log "${data[1]}"
+    # for obj in "${data[@]}"; do
+    #     log "keys: $(keys "$obj")"
+    # done
+
+    unset report
+}
+
 function storage_status() {
     # shellcheck disable=SC2034
     local -r json=$(pve_storage)
@@ -268,6 +289,7 @@ function moxy_status() {
         lxc) lxc_status;;
         vm) vm_status;;
         cluster) cluster_status;;
+        ha) ha_status;;
         *) status_help;;
     esac
 }

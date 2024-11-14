@@ -352,7 +352,12 @@ function is_not_typeof() {
 function is_typeof() {
     allow_errors
     local -n _var_reference_=$1
-    local -n test="${2:-is_not_typeof(var,type) did not provide a type!}"
+    local -r test="$2"
+
+    if is_empty "$test"; then
+        panic "Empty value passed in as type to test for in is_typeof(var,test)!"
+    fi
+
     catch_errors
 
     if is_bound _var_reference_; then
@@ -367,7 +372,7 @@ function is_typeof() {
         if is_empty "$val"; then
             error "nothing was passed into the first parameter of is_not_typeof()"
         else
-            local -r val_type="$(typeof val)"
+            local -r val_type="$(typeof "$val")"
             if [[ "$val_type" == "$test" ]]; then
                 return 0
             else
@@ -395,7 +400,7 @@ function get() {
         elements=$(replace "${LIST_DELIMITER}" " " "${elements}")
         debug "get" "${elements}"
         # shellcheck disable=SC2207
-        arr=( $(split "${LIST_DELIMITER}" "${elements}" ) )
+        arr=( $(split_on "${LIST_DELIMITER}" "${elements}" ) )
 
         if (( deref > ${#arr[@]} )); then
             warn "attempt to dereference a list with an invalid index: ${DIM}${idx}${RESET}"
@@ -413,14 +418,14 @@ function get() {
         debug "get" "container is an object"
         content=$(object_strip "${container}")
         # shellcheck disable=SC2207
-        kv_pairs=( $(split "${OBJECT_DELIMITER}" "$content") )
+        kv_pairs=( $(split_on "${OBJECT_DELIMITER}" "$content") )
         debug "get" "object has ${#kv_pairs[@]} keys"
 
         for i in "${kv_pairs[@]}"; do
             i=$(kv_strip "$i")
             local -a key_value=()
             # shellcheck disable=SC2207
-            key_value=( $(split "${KV_DELIMITER}" "${i}") )
+            key_value=( $(split_on "${KV_DELIMITER}" "${i}") )
             debug "get" "key: ${DIM}${key_value[0]}${RESET}, value:  ${DIM}${key_value[1]}${RESET}"
 
             if [[ "$idx" == "${key_value[0]}" ]]; then
@@ -448,7 +453,7 @@ function first() {
     if is_kv_pair "$1"; then
         local -r kv=$(kv_strip "$1")
         # shellcheck disable=SC2207
-        local -ra pair=( $(split "${KV_DELIMITER}" "$kv" ) )
+        local -ra pair=( $(split_on "${KV_DELIMITER}" "$kv" ) )
         debug "first" "found a kv-pair [${#pair[@]}]: ${DIM}${pair[*]} -> ${pair[0]}${RESET}"
         echo "${pair[0]}"
         return 0
@@ -482,7 +487,7 @@ function last() {
     if is_kv_pair "$1"; then
         local -r kv=$(kv_strip "$1")
         # shellcheck disable=SC2207
-        local -ra pair=( $(split "${KV_DELIMITER}" "$kv" ) )
+        local -ra pair=( $(split_on "${KV_DELIMITER}" "$kv" ) )
         debug "last" "found a kv-pair [${#pair[@]}]: ${DIM}${pair[*]} -> ${pair[1]}${RESET}"
         echo "${pair[1]}"
         return 0

@@ -71,7 +71,6 @@ function reverse_lookup() {
             debug "reverse_lookup(${address})" "dig and host are not installed on the system!"
             error "can not do a reverse lookup unless dig or host are installed on the host system"
         fi
-
     fi
 }
 
@@ -132,4 +131,55 @@ function json_list_data() {
 
         __data+=("$(declare -p record | sed 's/^declare -A record=//')")
     done
+}
+
+function json_list() {
+    local -n __json=$1
+    local -n __arr=$2
+
+    if is_not_typeof __json "string"; then
+        error "Invalid JSON passed into json_list(); expected a reference to string data but instead got $(typeof __json)"
+    fi
+
+    # if ! is_function __fn; then
+    #     error "Invalid call to json_list(json, fn); the second parameter is meant to be a function reference and instead was a $(typeof __fn)"
+    # fi
+
+    local json_array
+    local -r kvs=$(jq -j '.[][] | to_entries' <<<"$__json")
+    local -ra s=$(split_on "\u0000" "$(replace "]" "]\u0000\n" "$kvs")")
+
+    log "${#s[@]}"
+
+    # for json_obj in "${json_array[@]}"; do
+
+
+    #     # local -a kv_arr
+    #     # local jq_cmd="jq -j '. | (\"${KV_PREFIX}\", .key, \"${KV_DELIMITER}\", .value, \"${KV_SUFFIX}\", \"\n\")'"
+    #     # kv_arr=( 
+    #     #     "$(echo "$json_obj" | eval "${jq_cmd}")"
+    #     # )
+    #     # local obj
+    #     # obj=$(object "${kv_arr[@]}")
+
+        # log "${json_obj}"
+
+
+    #     # data+=( "$obj" )
+    # done
+
+    # __arr=( "${data[@]}" )
+
+    # local -a arr=()
+    # for idx in "${!data[@]}"; do
+    #     local -a kvs=()
+    #     for key in "${!record[@]}"; do
+    #         kvs+=( "$(kv "${key}" "${record["${key}"]}")" )
+    #     done
+    #     local obj
+    #     obj=$(object "${kvs[@]}" )
+    #     arr+=( "${obj}" )
+    # done
+
+    # __arr=( "${arr[@]}" )
 }

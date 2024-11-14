@@ -23,8 +23,6 @@ export BRIGHT_MAGENTA='\033[95m'
 export BRIGHT_CYAN='\033[96m'
 export BRIGHT_WHITE='\033[97m'
 
-
-
 export BOLD='\033[1m'
 export NO_BOLD='\033[21m'
 export DIM='\033[2m'
@@ -96,7 +94,7 @@ function log() {
 # Logs to STDERR when the DEBUG env variable is set
 # and not equal to "false".
 function debug() {
-    DEBUG=$(lc "$DEBUG")
+    local -r DEBUG=$(lc "${DEBUG:-}")
     if [[ "${DEBUG}" != "false" ]]; then
         if (( $# > 1 )); then
             local fn="$1"
